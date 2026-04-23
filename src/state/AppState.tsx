@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { User } from 'firebase/auth';
-import { onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../lib/firebase';
 import type { Activity, AppData, Meal, UserProfile } from '../types';
@@ -86,11 +86,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const userRef = useRef<User | null>(null);
   userRef.current = user;
 
-  // Handle redirect result on app load (mobile Safari uses redirect flow)
-  useEffect(() => {
-    getRedirectResult(auth).catch(() => {});
-  }, []);
-
   // Listen for auth state changes
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -134,12 +129,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [data]);
 
   const signInWithGoogle = useCallback(async () => {
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    if (isSafari) {
-      await signInWithRedirect(auth, googleProvider);
-    } else {
-      await signInWithPopup(auth, googleProvider);
-    }
+    await signInWithPopup(auth, googleProvider);
   }, []);
 
   const signOutUser = useCallback(async () => {
