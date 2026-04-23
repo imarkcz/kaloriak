@@ -74,6 +74,7 @@ export default function ProgressRing({
   }));
 
   return (
+    <>
     <div className="relative" style={{ width: size, height: size }}>
       {/* Slow rotating conic halo (holographic vibe) */}
       <div
@@ -235,12 +236,13 @@ export default function ProgressRing({
         >
           {over ? `+${Math.round(value - target)} nad cíl` : `${remaining} zbývá`}
         </span>
-        {hint && (
-          <span className="text-[11px] mt-2 px-2.5 py-1 rounded-full bg-white/[0.06] text-ink-soft ring-1 ring-white/10 font-medium tabular-nums max-w-[80%] text-center leading-tight">
-            {hint}
-          </span>
-        )}
       </div>
     </div>
+    {hint && (
+      <span className="mt-3 px-3 py-1 rounded-full bg-white/[0.06] text-ink-mute ring-1 ring-white/8 text-[10px] font-medium text-center leading-tight max-w-[240px]">
+        {hint}
+      </span>
+    )}
+    </>
   );
 }
