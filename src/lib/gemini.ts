@@ -1,5 +1,3 @@
-import { GoogleGenAI, Type } from '@google/genai';
-
 export interface FoodAnalysis {
   name: string;
   grams: number;
@@ -11,27 +9,6 @@ export interface FoodAnalysis {
   note?: string;
 }
 
-const SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    name: { type: Type.STRING, description: 'Krátký název jídla v češtině.' },
-    grams: { type: Type.NUMBER, description: 'Odhadovaná hmotnost porce v gramech.' },
-    kcal: { type: Type.NUMBER, description: 'Celkové kalorie porce.' },
-    protein_g: { type: Type.NUMBER, description: 'Bílkoviny v gramech.' },
-    carbs_g: { type: Type.NUMBER, description: 'Sacharidy v gramech.' },
-    fat_g: { type: Type.NUMBER, description: 'Tuky v gramech.' },
-    confidence: { type: Type.STRING, enum: ['low', 'medium', 'high'] },
-    note: { type: Type.STRING, description: 'Stručná poznámka k odhadu (volitelné).' },
-  },
-  required: ['name', 'grams', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'confidence'],
-};
-
-const PROMPT = `Jsi nutriční expert. Analyzuj jídlo na fotce a odhadni nutriční hodnoty celé porce, kterou vidíš.
-Vrať jeden JSON objekt podle schématu. Odhad dělej realisticky — zohledni velikost porce podle běžných referenčních objektů (talíř ~27 cm, vidlička, ruka).
-Pokud je jídel více, spoj je do jednoho záznamu s názvem např. "Kuřecí s rýží a salátem".
-Hodnoty zaokrouhli: kcal na celé číslo, makra na 1 desetinné místo, gramy na celé číslo.
-Confidence: high = jasně viditelné a odhadnutelné, medium = běžný odhad, low = velmi nejisté.`;
-
 export interface FoodEstimate {
   name: string;
   defaultGrams: number;
@@ -42,30 +19,6 @@ export interface FoodEstimate {
   confidence: 'low' | 'medium' | 'high';
   note?: string;
 }
-
-const ESTIMATE_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    name: { type: Type.STRING, description: 'Vyčištěný a normalizovaný český název jídla.' },
-    defaultGrams: { type: Type.NUMBER, description: 'Typická velikost běžné porce v gramech.' },
-    kcal: { type: Type.NUMBER, description: 'Kalorie na 100 g.' },
-    protein_g: { type: Type.NUMBER, description: 'Bílkoviny v gramech na 100 g.' },
-    carbs_g: { type: Type.NUMBER, description: 'Sacharidy v gramech na 100 g.' },
-    fat_g: { type: Type.NUMBER, description: 'Tuky v gramech na 100 g.' },
-    confidence: { type: Type.STRING, enum: ['low', 'medium', 'high'] },
-    note: { type: Type.STRING, description: 'Volitelná stručná poznámka (např. způsob přípravy).' },
-  },
-  required: ['name', 'defaultGrams', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'confidence'],
-};
-
-const ESTIMATE_PROMPT = `Jsi nutriční expert. Z názvu jídla v češtině odhadni typické nutriční hodnoty na 100 g.
-Pravidla:
-- Hodnoty vždy uvažuj per 100 g (nebo 100 ml u nápojů a tekutých jídel).
-- defaultGrams = typická 1 porce (např. řízek 180, talíř polévky 300, jablko 180, kafe 200).
-- Pokud způsob přípravy není jasný, předpokládej běžný (grilované, vařené, pečené).
-- Vrať pouze JSON podle schématu, žádný extra text.
-- Hodnoty zaokrouhli: kcal na celé číslo, makra na 1 desetinné místo, gramy na celé číslo.
-- confidence: high = běžné českévé/světové jídlo, medium = méně časté ale jasné, low = nejednoznačné.`;
 
 // Gemini occasionally returns 503 / 429 when overloaded — the call is idempotent
 // so we retry a couple of times with exponential backoff before bubbling up.
