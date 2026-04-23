@@ -153,12 +153,39 @@ export default function Profile() {
         </Card>
 
         <Card title="Gemini API klíč">
-          <p className="text-xs text-ink-mute mb-3">
-            Klíč se ukládá jen lokálně v prohlížeči. Získej ho zdarma na{' '}
-            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-coral-400 underline">
-              aistudio.google.com/apikey
-            </a>.
+          {/* Status badge */}
+          <div className={`flex items-center gap-2 mb-4 px-3 py-2 rounded-xl text-sm font-semibold ${apiKey ? 'bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20' : 'bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20'}`}>
+            <span className="text-base">{apiKey ? '✓' : '⚠'}</span>
+            {apiKey ? 'Klíč je nastaven — AI funkce jsou aktivní' : 'Klíč chybí — AI analýza fotek nebude fungovat'}
+          </div>
+
+          {/* Why */}
+          <p className="text-xs text-ink-soft mb-4 leading-relaxed">
+            Kaloriak používá Google Gemini AI pro analýzu fotek jídla a odhad kalorií. Klíč je <span className="text-white/80 font-semibold">zdarma</span> a ukládá se jen lokálně v tvém prohlížeči — nikam se neodesílá.
           </p>
+
+          {/* Steps */}
+          <div className="space-y-3 mb-4">
+            {[
+              { n: '1', text: 'Otevři', link: { label: 'aistudio.google.com/apikey', href: 'https://aistudio.google.com/apikey' } },
+              { n: '2', text: 'Přihlas se Google účtem (gmail)' },
+              { n: '3', text: 'Klikni na „Create API key"' },
+              { n: '4', text: 'Zkopíruj klíč (začíná AIza…) a vlož ho sem' },
+            ].map((s) => (
+              <div key={s.n} className="flex items-start gap-3">
+                <span className="w-6 h-6 rounded-full bg-coral-500/20 text-coral-400 text-[11px] font-extrabold flex items-center justify-center shrink-0 mt-0.5">{s.n}</span>
+                <span className="text-xs text-ink-soft leading-relaxed">
+                  {s.text}{' '}
+                  {s.link && (
+                    <a href={s.link.href} target="_blank" rel="noreferrer" className="text-coral-400 underline font-semibold">
+                      {s.link.label}
+                    </a>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+
           <input
             className="field font-mono text-xs"
             type="password"
@@ -166,6 +193,7 @@ export default function Profile() {
             value={apiKey}
             onChange={(e) => setKeyLocal(e.target.value)}
           />
+          <p className="text-[10px] text-ink-mute mt-2 text-center">Klíč se uloží po kliknutí na „Uložit změny" níže</p>
         </Card>
 
         <button
