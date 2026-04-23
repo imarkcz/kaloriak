@@ -1,5 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import type { User } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db, googleProvider } from '../lib/firebase';
 import type { Activity, AppData, Meal, UserProfile } from '../types';
 
 const STORAGE_KEY = 'kaloriak:v1';
@@ -13,27 +17,54 @@ const DEFAULT: AppData = {
   onboarded: false,
 };
 
-function load(): AppData {
+function loadLocal(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT;
-    const parsed = JSON.parse(raw);
-    return { ...DEFAULT, ...parsed };
+    return { ...DEFAULT, ...JSON.parse(raw) };
   } catch {
     return DEFAULT;
   }
 }
 
-function save(data: AppData) {
+function saveLocal(data: AppData) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch { /* ignore */ }
+}
+
+// Strip heavy base64 blobs before sending to Firestore (1 MB limit per doc).
+// They stay in localStorage for local display.
+function stripBlobs(data: AppData): AppData {
+  return {
+    ...data,
+    profile: data.profile ? { ...data.profile, avatarDataUrl: undefined } : null,
+    meals: data.meals.map((m) => ({ ...m, imageDataUrl: undefined })),
+  };
+}
+
+async function loadFromFirestore(uid: string): Promise<AppData | null> {
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (!snap.exists()) return null;
+    return { ...DEFAULT, ...(snap.data() as Partial<AppData>) };
   } catch {
-    // ignore
+    return null;
   }
+}
+
+async function saveToFirestore(uid: string, data: AppData) {
+  try {
+    await setDoc(doc(db, 'users', uid), stripBlobs(data), { merge: true });
+  } catch { /* offline — ignore */ }
 }
 
 interface AppContextValue {
   data: AppData;
+  user: User | null;
+  authLoading: boolean;
+  signInWithGoogle: () => Promise<void>;
+  signOutUser: () => Promise<void>;
   setProfile: (p: UserProfile) => void;
   setApiKey: (k: string) => void;
   addMeal: (m: Meal) => void;
@@ -48,11 +79,63 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<AppData>(() => load());
+  const [data, setData] = useState<AppData>(() => loadLocal());
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userRef = useRef<User | null>(null);
+  userRef.current = user;
 
+  // Listen for auth state changes
   useEffect(() => {
-    save(data);
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      if (firebaseUser) {
+        // Load cloud data and merge with local (cloud wins for profile/meals,
+        // local geminiApiKey stays since it's not synced for privacy)
+        const cloud = await loadFromFirestore(firebaseUser.uid);
+        if (cloud) {
+          const local = loadLocal();
+          setData({
+            ...cloud,
+            // keep local API key — it's sensitive and device-specific
+            geminiApiKey: local.geminiApiKey || cloud.geminiApiKey,
+            // keep local avatar (stripped in cloud)
+            profile: cloud.profile
+              ? { ...cloud.profile, avatarDataUrl: local.profile?.avatarDataUrl }
+              : local.profile,
+            // merge meal imageDataUrls back from local cache
+            meals: cloud.meals.map((cm) => {
+              const lm = local.meals.find((m) => m.id === cm.id);
+              return lm ? { ...cm, imageDataUrl: lm.imageDataUrl } : cm;
+            }),
+          });
+        }
+      }
+      setAuthLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  // Sync to localStorage always, to Firestore (debounced) when logged in
+  useEffect(() => {
+    saveLocal(data);
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    if (userRef.current) {
+      syncTimer.current = setTimeout(() => {
+        saveToFirestore(userRef.current!.uid, data);
+      }, 1500);
+    }
   }, [data]);
+
+  const signInWithGoogle = useCallback(async () => {
+    await signInWithPopup(auth, googleProvider);
+  }, []);
+
+  const signOutUser = useCallback(async () => {
+    await signOut(auth);
+    // Keep local data on logout
+  }, []);
 
   const setProfile = useCallback((profile: UserProfile) => {
     setData((d) => ({ ...d, profile, onboarded: true }));
@@ -83,10 +166,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setWater = useCallback((date: string, ml: number) => {
-    setData((d) => ({
-      ...d,
-      water: { ...(d.water ?? {}), [date]: Math.max(0, Math.round(ml)) },
-    }));
+    setData((d) => ({ ...d, water: { ...(d.water ?? {}), [date]: Math.max(0, Math.round(ml)) } }));
   }, []);
 
   const resetAll = useCallback(() => {
@@ -94,8 +174,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AppContextValue>(
-    () => ({ data, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll }),
-    [data, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll],
+    () => ({ data, user, authLoading, signInWithGoogle, signOutUser, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll }),
+    [data, user, authLoading, signInWithGoogle, signOutUser, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

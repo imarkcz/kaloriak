@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 
 export default function Profile() {
-  const { data, setProfile, setApiKey, resetAll } = useApp();
+  const { data, user, setProfile, setApiKey, resetAll, signOutUser } = useApp();
   const navigate = useNavigate();
   const p = data.profile;
 
@@ -210,8 +210,18 @@ export default function Profile() {
           Smazat všechna data
         </button>
 
+        {user && (
+          <button
+            onClick={signOutUser}
+            className="w-full py-3 rounded-2xl text-ink-mute text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            Odhlásit se ({user.email})
+          </button>
+        )}
+
         <p className="text-center text-xs text-ink-mute pt-2">
-          Kaloriak • data uložena lokálně
+          Kaloriak • data uložena v cloudu
         </p>
       </main>
 
