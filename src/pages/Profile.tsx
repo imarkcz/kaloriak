@@ -27,7 +27,7 @@ export default function Profile() {
     if (p) setProfile({ ...p, useDynamicTdee: v });
   }
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | undefined>(p?.avatarDataUrl);
-  const [apiKey, setKeyLocal] = useState(data.geminiApiKey);
+  const [apiKey] = useState(data.geminiApiKey);
   const [saved, setSaved] = useState(false);
 
   if (!p) {
