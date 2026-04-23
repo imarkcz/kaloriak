@@ -109,11 +109,6 @@ export default function AddMeal() {
   }, [query, data.meals, offResults]);
 
   async function handleFile(file: File) {
-    if (!data.geminiApiKey) {
-      setPhotoError('Chybí Gemini API klíč. Otevři profil a nastav ho.');
-      setPhotoStage('error');
-      return;
-    }
     try {
       setPhotoStage('analyzing');
       const compressed = await compressImage(file);
@@ -190,10 +185,6 @@ export default function AddMeal() {
   async function handleAiEstimate() {
     const q = query.trim();
     if (!q || estimating) return;
-    if (!data.geminiApiKey) {
-      setEstimateError('Pro AI odhad nastav Gemini API klíč v profilu.');
-      return;
-    }
     setEstimateError('');
     setEstimating(true);
     try {
