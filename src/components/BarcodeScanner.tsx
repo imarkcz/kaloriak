@@ -26,29 +26,42 @@ export default function BarcodeScanner({ onDetected, onClose }: Props) {
       BarcodeFormat.QR_CODE,
     ]);
 
-    const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 200 });
+    const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 150 });
 
     (async () => {
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new Error('Kamera není dostupná v tomto prohlížeči.');
         }
-        const controls = await reader.decodeFromVideoDevice(undefined, videoRef.current!, (result) => {
+        // Explicitly request rear camera with autofocus
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+        });
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        const video = videoRef.current!;
+        video.srcObject = stream;
+        await video.play();
+        stop = () => { stream.getTracks().forEach((t) => t.stop()); };
+
+        const controls = await reader.decodeFromVideoElement(video, (result) => {
           if (cancelled || !result) return;
           const text = result.getText();
           if (text && text.length >= 6) {
             setDetected(true);
-            // small delay so user sees the green flash
-            setTimeout(() => {
-              onDetected(text);
-            }, 250);
+            setTimeout(() => { onDetected(text); }, 250);
           }
         });
-        stop = () => controls.stop();
+        const prevStop = stop;
+        stop = () => { prevStop?.(); controls.stop(); };
       } catch (e) {
         if (!cancelled) {
           const msg = e instanceof Error ? e.message : String(e);
-          setError(msg.includes('Permission') || msg.includes('NotAllowed') ? 'Přístup ke kameře zamítnut. Povol jej v nastavení prohlížeče.' : msg);
+          setError(msg.includes('Permission') || msg.includes('NotAllowed')
+            ? 'Přístup ke kameře zamítnut. Povol jej v nastavení prohlížeče.' : msg);
         }
       }
     })();
