@@ -106,54 +106,25 @@ export function humanizeGeminiError(e: unknown): string {
   return 'AI odhad selhal. Zkus to znovu nebo zadej hodnoty ručně.';
 }
 
-export async function estimateFoodFromName(apiKey: string, name: string): Promise<FoodEstimate> {
-  if (!apiKey) throw new Error('Chybí Gemini API klíč. Nastav ho v profilu.');
-  const q = name.trim();
-  if (q.length < 2) throw new Error('Příliš krátký dotaz.');
-
-  const ai = new GoogleGenAI({ apiKey });
-  const response = await callWithRetry(() =>
-    ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{ role: 'user', parts: [{ text: `${ESTIMATE_PROMPT}\n\nNázev jídla: "${q}"` }] }],
-      config: { responseMimeType: 'application/json', responseSchema: ESTIMATE_SCHEMA },
-    })
-  );
-
-  const text = response.text;
-  if (!text) throw new Error('AI nevrátila žádnou odpověď.');
-  return JSON.parse(text) as FoodEstimate;
+async function callProxy(body: object): Promise<unknown> {
+  const res = await fetch('/api/gemini', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error ?? 'Chyba serveru.');
+  return json;
 }
 
-export async function analyzeFoodImage(apiKey: string, imageBase64: string, mimeType: string): Promise<FoodAnalysis> {
-  if (!apiKey) throw new Error('Chybí Gemini API klíč. Nastav ho v profilu.');
+export async function estimateFoodFromName(_apiKey: string, name: string): Promise<FoodEstimate> {
+  const q = name.trim();
+  if (q.length < 2) throw new Error('Příliš krátký dotaz.');
+  return await callWithRetry(() => callProxy({ type: 'name', name: q })) as FoodEstimate;
+}
 
-  const ai = new GoogleGenAI({ apiKey });
-
-  const response = await callWithRetry(() =>
-    ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: PROMPT },
-            { inlineData: { mimeType, data: imageBase64 } },
-          ],
-        },
-      ],
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: SCHEMA,
-      },
-    })
-  );
-
-  const text = response.text;
-  if (!text) throw new Error('AI nevrátila žádnou odpověď.');
-
-  const parsed = JSON.parse(text) as FoodAnalysis;
-  return parsed;
+export async function analyzeFoodImage(_apiKey: string, imageBase64: string, mimeType: string): Promise<FoodAnalysis> {
+  return await callWithRetry(() => callProxy({ type: 'image', imageBase64, mimeType })) as FoodAnalysis;
 }
 
 export function fileToBase64(file: File): Promise<{ base64: string; mimeType: string; dataUrl: string }> {
