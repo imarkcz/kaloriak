@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Dark background -->
+  <rect width="512" height="512" rx="112" fill="#111113"/>
+
+  <!-- Macro ring — 4 arc segments, stroke-based, rotated so 0° = 12 o'clock -->
+  <!-- r=150, strokeWidth=68, circumference=942.48 -->
+  <!-- Each segment 80° = 209.44, gap 10° = 26.18 -->
+  <g transform="rotate(-90 256 256)">
+    <!-- Red/coral — upper-left (275°–355°), dashoffset = -(275/360*942.48) -->
+    <circle cx="256" cy="256" r="150" fill="none"
+      stroke="url(#gRed)" stroke-width="68"
+      stroke-dasharray="209.4 733.1" stroke-dashoffset="-719.6"
+      stroke-linecap="round"/>
+    <!-- Orange — upper-right (5°–85°), dashoffset = -(5/360*942.48) -->
+    <circle cx="256" cy="256" r="150" fill="none"
+      stroke="url(#gOrange)" stroke-width="68"
+      stroke-dasharray="209.4 733.1" stroke-dashoffset="-13.1"
+      stroke-linecap="round"/>
+    <!-- Green — lower-right (95°–175°), dashoffset = -(95/360*942.48) -->
+    <circle cx="256" cy="256" r="150" fill="none"
+      stroke="url(#gGreen)" stroke-width="68"
+      stroke-dasharray="209.4 733.1" stroke-dashoffset="-248.8"
+      stroke-linecap="round"/>
+    <!-- Purple — lower-left (185°–265°), dashoffset = -(185/360*942.48) -->
+    <circle cx="256" cy="256" r="150" fill="none"
+      stroke="url(#gPurple)" stroke-width="68"
+      stroke-dasharray="209.4 733.1" stroke-dashoffset="-484.5"
+      stroke-linecap="round"/>
+  </g>
+
+  <defs>
+    <!-- gradients follow the arc rotation so they look natural -->
+    <linearGradient id="gRed" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#c0392b"/>
+      <stop offset="100%" stop-color="#f05454"/>
+    </linearGradient>
+    <linearGradient id="gOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="gGreen" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#84cc16"/>
+      <stop offset="100%" stop-color="#4d9e22"/>
+    </linearGradient>
+    <linearGradient id="gPurple" x1="100%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#6d28d9"/>
+      <stop offset="100%" stop-color="#9333ea"/>
+    </linearGradient>
+  </defs>
+
+  <!-- White bold K, centered -->
+  <text
+    x="256" y="266"
+    text-anchor="middle"
+    dominant-baseline="central"
+    font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif"
+    font-weight="900"
+    font-size="200"
+    fill="white"
+    letter-spacing="-4">K</text>
+</svg>

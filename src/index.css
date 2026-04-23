@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+  background: #0a0a0b;
+  color: #fafafa;
+  font-family: Geist, Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11' on, 'ss01' on, 'ss03' on;
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.011em;
+  overscroll-behavior-y: contain;
+}
+
+/* Tighter, more-display tracking for headings (Apple-style) */
+h1 { letter-spacing: -0.035em; }
+h2 { letter-spacing: -0.025em; }
+h3 { letter-spacing: -0.018em; }
+
+/* Tabular numerals everywhere a Tailwind class isn't applied */
+.tabular-nums { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' on, 'cv11' on; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(249,115,102,0.18), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 100% 30%, rgba(167,139,250,0.10), transparent 70%),
+    #0a0a0b;
+  background-attachment: fixed;
+}
+
+/* Safe area for iOS notch / home bar */
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Hide number input spinners */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] { -moz-appearance: textfield; }
+
+/* Custom range slider styling — dark mode */
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 28px;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 6px;
+  background: #2a2a30;
+  border-radius: 999px;
+}
+input[type=range]::-moz-range-track {
+  height: 6px;
+  background: #2a2a30;
+  border-radius: 999px;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  background: #ffffff;
+  border-radius: 999px;
+  margin-top: -8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 0 2px rgba(249,115,102,0.6);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+input[type=range]::-webkit-slider-thumb:active {
+  transform: scale(1.15);
+}
+input[type=range]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  background: #ffffff;
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 0 2px rgba(249,115,102,0.6);
+  cursor: pointer;
+}
+
+/* Glass card */
+.glass {
+  background: linear-gradient(180deg, rgba(28,28,32,0.85), rgba(20,20,22,0.85));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* Selection */
+::selection { background: rgba(249,115,102,0.4); color: #fff; }
+
+/* Text balance for headers */
+h1, h2 { text-wrap: balance; }
+
+/* Numbers in stat blocks should always be tabular */
+.tabular-nums, [class*="tabular-nums"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Default focus */
+*:focus-visible {
+  outline: 2px solid #f97366;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Disable ios tap highlight */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Macro pill hover sparkles — keyframes inlined so they don't depend on tailwind rebuild */
+@keyframes pillSparkUp {
+  0%   { transform: translateY(0) scale(0.4); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateY(-70px) scale(0.2); opacity: 0; }
+}
+@keyframes pillHaloIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+.pill-spark { animation: pillSparkUp 2.4s ease-out infinite; }
+.pill-halo  { animation: pillHaloIn 600ms ease-out forwards; }
