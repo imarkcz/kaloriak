@@ -36,15 +36,30 @@ export default function Profile() {
   const [heightCm, setHeightCm] = useState(p?.heightCm ?? 175);
   const [weightKg, setWeightKg] = useState(p?.weightKg ?? 75);
   const [targetWeightKg, setTargetWeightKg] = useState(p?.targetWeightKg ?? p?.weightKg ?? 75);
-  const [activity, setActivity] = useState<ActivityLevel>(p?.activity ?? 'moderate');
-  const [goal, setGoal] = useState<Goal>(p?.goal ?? 'maintain');
+  const [activity, setActivityLocal] = useState<ActivityLevel>(p?.activity ?? 'moderate');
+  const [goal, setGoalLocal] = useState<Goal>(p?.goal ?? 'maintain');
   const [useDynamicTdee, setUseDynamicTdeeLocal] = useState<boolean>(p?.useDynamicTdee ?? true);
 
-  // Toggle persists immediately so the user sees the effect on Today right
-  // away — the rest of the form stays form-style with explicit Save.
+  // Goal/activity/toggle auto-save — they directly affect daily targets,
+  // so requiring an extra "Save" click was confusing (users changed goal
+  // but kcal target didn't budge).
   function setUseDynamicTdee(v: boolean) {
     setUseDynamicTdeeLocal(v);
     if (p) setProfile({ ...p, useDynamicTdee: v });
+  }
+  function setGoal(g: Goal) {
+    setGoalLocal(g);
+    if (p) {
+      const newTargets = computeTargets(p.sex, p.weightKg, p.heightCm, p.age, p.activity, g);
+      setProfile({ ...p, goal: g, targets: newTargets });
+    }
+  }
+  function setActivity(a: ActivityLevel) {
+    setActivityLocal(a);
+    if (p) {
+      const newTargets = computeTargets(p.sex, p.weightKg, p.heightCm, p.age, a, p.goal);
+      setProfile({ ...p, activity: a, targets: newTargets });
+    }
   }
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | undefined>(p?.avatarDataUrl);
   const [apiKey] = useState(data.geminiApiKey);

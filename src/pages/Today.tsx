@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../state/AppState';
 import { todayISO, formatDateLabel } from '../lib/date';
 import ProgressRing from '../components/ProgressRing';
@@ -16,6 +16,23 @@ export default function Today() {
   const { data, deleteMeal, updateMeal, deleteActivity, setWater } = useApp();
   const [date, setDate] = useState(() => todayISO());
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
+
+  // Reset to today when the app becomes visible again (PWA returns from
+  // background, browser tab refocused). Without this, opening the app the
+  // next morning leaves the user on yesterday's date.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible') {
+        setDate(todayISO());
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, []);
 
   const { kcal, protein, carbs, fat, meals } = useMemo(() => {
     const dayMeals = data.meals.filter((m) => m.date === date);
@@ -223,15 +240,26 @@ export default function Today() {
             <span className="text-xs text-ink-mute tabular-nums">{meals.length} {meals.length === 1 ? 'položka' : meals.length >= 2 && meals.length <= 4 ? 'položky' : 'položek'}</span>
           </div>
           {meals.length === 0 ? (
-            <div className="glass rounded-3xl p-8 text-center">
-              <div className="text-4xl mb-2">🍽️</div>
-              <p className="text-ink-soft text-sm">Ještě nic dnes.</p>
-              <Link
-                to="/add"
-                className="inline-block mt-4 px-5 py-2.5 rounded-full bg-grad-coral text-white font-semibold text-sm shadow-coral-soft active:scale-95 transition-transform"
-              >
-                Přidat jídlo
-              </Link>
+            <div className="glass rounded-3xl p-8 text-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-grad-glow opacity-50 pointer-events-none" />
+              <div className="relative">
+                <div className="text-5xl mb-3 animate-pop">🍽️</div>
+                <p className="text-ink font-semibold text-base">
+                  {data.meals.length === 0 ? 'Začni svůj den s Kaloriak!' : 'Zapiš si první jídlo dne'}
+                </p>
+                <p className="text-ink-soft text-xs mt-1.5">
+                  {data.meals.length === 0
+                    ? 'Vyfoť, naskenuj nebo najdi v databázi.'
+                    : 'Foť, skenuj kód, nebo vyhledej v databázi.'}
+                </p>
+                <Link
+                  to="/add"
+                  className="inline-flex items-center gap-2 mt-5 px-6 py-3 rounded-full bg-grad-coral text-white font-semibold text-sm shadow-coral-glow active:scale-95 transition-transform"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                  Přidat jídlo
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="space-y-2">
