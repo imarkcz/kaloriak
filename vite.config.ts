@@ -25,6 +25,13 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,webp,woff2}'],
+        // Take over immediately when a new SW is available. Without this
+        // the PWA serves the old bundle until every installed instance is
+        // fully closed — on iOS/Android home-screen apps that can mean
+        // basically never. With these on, users get the latest code on
+        // next refresh.
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ],
