@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../state/AppState';
 import type { ActivityLevel, Goal, Sex } from '../types';
-import { ACTIVITY_LABELS, GOAL_LABELS, computeTargets } from '../lib/tdee';
+import { ACTIVITY_LABELS, GOAL_LABELS, computeTargets, dynamicDailyTargets } from '../lib/tdee';
 import { useNavigate } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 
@@ -50,17 +50,23 @@ export default function Profile() {
   function setGoal(g: Goal) {
     setGoalLocal(g);
     if (p) {
-      const newTargets = computeTargets(p.sex, p.weightKg, p.heightCm, p.age, p.activity, g);
-      setProfile({ ...p, goal: g, targets: newTargets });
+      // Use local state (sex/weight/height/age) so unsaved slider edits are honored.
+      const newTargets = computeTargets(sex, weightKg, heightCm, age, activity, g);
+      setProfile({ ...p, sex, weightKg, heightCm, age, goal: g, targets: newTargets });
     }
   }
   function setActivity(a: ActivityLevel) {
     setActivityLocal(a);
     if (p) {
-      const newTargets = computeTargets(p.sex, p.weightKg, p.heightCm, p.age, a, p.goal);
-      setProfile({ ...p, activity: a, targets: newTargets });
+      const newTargets = computeTargets(sex, weightKg, heightCm, age, a, goal);
+      setProfile({ ...p, sex, weightKg, heightCm, age, activity: a, targets: newTargets });
     }
   }
+
+  // Mirror Today.tsx: when dynamic mode is on, compute target the same way
+  // (BMR × sedentary + goal_adjust, ignoring activity multiplier — burned=0
+  // here since this is a preview without today's actual activity log).
+  // Otherwise calorie shown in Profile won't match what user sees on Today.
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | undefined>(p?.avatarDataUrl);
   const [apiKey] = useState(data.geminiApiKey);
   const [saved, setSaved] = useState(false);
@@ -95,7 +101,9 @@ export default function Profile() {
     }
   }
 
-  const targets = computeTargets(sex, weightKg, heightCm, age, activity, goal);
+  const targets = useDynamicTdee
+    ? dynamicDailyTargets(sex, weightKg, heightCm, age, goal, 0)
+    : computeTargets(sex, weightKg, heightCm, age, activity, goal);
 
   return (
     <div className="min-h-dvh pt-safe pb-32">
@@ -156,6 +164,11 @@ export default function Profile() {
                 </Choice>
               ))}
             </div>
+            {useDynamicTdee && (
+              <p className="text-[11px] text-ink-mute mt-2 leading-snug">
+                V dynamickém režimu se tato hodnota ignoruje — cíl se počítá z BMR + reálně spálených kcal.
+              </p>
+            )}
           </Row>
           <Row label="Cíl">
             <div className="grid grid-cols-3 gap-2">

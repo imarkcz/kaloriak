@@ -43,13 +43,13 @@ function stripBlobs(data: AppData): AppData {
   };
 }
 
-async function loadFromFirestore(uid: string): Promise<AppData | null> {
+async function loadFromFirestore(uid: string): Promise<{ docExists: boolean; data: AppData | null }> {
   try {
     const snap = await getDoc(doc(db, 'users', uid));
-    if (!snap.exists()) return null;
-    return { ...DEFAULT, ...(snap.data() as Partial<AppData>) };
+    if (!snap.exists()) return { docExists: false, data: null };
+    return { docExists: true, data: { ...DEFAULT, ...(snap.data() as Partial<AppData>) } };
   } catch {
-    return null;
+    return { docExists: false, data: null };
   }
 }
 
@@ -111,14 +111,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       setDataLoading(true);
       try {
-        const cloud = await loadFromFirestore(firebaseUser.uid);
+        const { docExists, data: cloud } = await loadFromFirestore(firebaseUser.uid);
         const local = loadLocal();
 
-        if (cloud && (cloud.onboarded || cloud.meals.length > 0 || cloud.profile)) {
-          // Cloud has real data — merge cloud + local blobs
+        if (docExists && cloud && (cloud.onboarded || cloud.meals.length > 0 || cloud.profile)) {
+          // Cloud has real data — merge with local blobs
           skipNextSync.current = true;
           setData({
             ...cloud,
+            // Never lose onboarded=true — cloud field may be missing or false due to old save
+            onboarded: cloud.onboarded || local.onboarded,
             geminiApiKey: local.geminiApiKey || cloud.geminiApiKey,
             profile: cloud.profile
               ? { ...cloud.profile, avatarDataUrl: local.profile?.avatarDataUrl }
@@ -128,11 +130,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
               return lm ? { ...cm, imageDataUrl: lm.imageDataUrl } : cm;
             }),
           });
+        } else if (docExists) {
+          // Firestore doc exists but has no meaningful data (returning user, data lost).
+          // Keep local state — if local also empty, at least skip onboarding since account exists.
+          if (local.onboarded || local.profile || local.meals.length > 0) {
+            await saveToFirestore(firebaseUser.uid, local); // re-upload local
+          } else {
+            // Authenticated returning user with no data anywhere — skip onboarding,
+            // let them fill in profile from Profile page instead.
+            skipNextSync.current = true;
+            setData((d) => ({ ...d, onboarded: true }));
+          }
         } else if (local.onboarded || local.meals.length > 0 || local.profile) {
-          // Cloud empty but local has data → upload local to cloud immediately
+          // No cloud doc but local has data → upload local to cloud immediately
           await saveToFirestore(firebaseUser.uid, local);
           // local data is already in state, no setData needed
         }
+        // else: genuinely new user with no data anywhere → show onboarding
       } finally {
         setDataLoading(false);
         setAuthLoading(false);
@@ -205,15 +219,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!userRef.current) return false;
     setDataLoading(true);
     try {
-      const cloud = await loadFromFirestore(userRef.current.uid);
-      if (!cloud) return false;
-      const local = loadLocal();
-      // If cloud has no meaningful data, don't wipe local state
+      const { docExists, data: cloud } = await loadFromFirestore(userRef.current.uid);
+      if (!docExists || !cloud) return false;
       if (!cloud.onboarded && !cloud.profile && cloud.meals.length === 0) return false;
+      const local = loadLocal();
       skipNextSync.current = true;
       setData({
         ...cloud,
-        // Never lose onboarded status — cloud might lack it due to partial save
         onboarded: cloud.onboarded || local.onboarded,
         geminiApiKey: local.geminiApiKey || cloud.geminiApiKey,
         profile: cloud.profile
