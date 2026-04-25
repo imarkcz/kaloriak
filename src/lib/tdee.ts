@@ -1,4 +1,4 @@
-import type { ActivityLevel, Goal, Sex, Targets } from '../types';
+import type { ActivityLevel, Goal, Intensity, Sex, Targets } from '../types';
 
 export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
   sedentary: 1.2,
@@ -22,11 +22,45 @@ export const GOAL_LABELS: Record<Goal, string> = {
   gain: 'Nabrat',
 };
 
-export const GOAL_KCAL_ADJUST: Record<Goal, number> = {
-  lose: -500,
-  maintain: 0,
-  gain: 300,
+// Per-goal kcal adjust by intensity (MyFitnessPal-style).
+// lose: −250 / −500 / −750  ≈  0.25 / 0.5 / 0.75 kg per week
+// gain: +150 / +300 / +500  ≈  mírný / standardní / agresivní bulk
+export const INTENSITY_KCAL: Record<Goal, Record<Intensity, number>> = {
+  lose: { mild: -250, moderate: -500, aggressive: -750 },
+  maintain: { mild: 0, moderate: 0, aggressive: 0 },
+  gain: { mild: 150, moderate: 300, aggressive: 500 },
 };
+
+export const INTENSITY_LABEL: Record<Intensity, string> = {
+  mild: 'Mírné',
+  moderate: 'Standardní',
+  aggressive: 'Agresivní',
+};
+
+export const INTENSITY_DETAIL: Record<Goal, Record<Intensity, string>> = {
+  lose: {
+    mild: '~0,25 kg / týden',
+    moderate: '~0,5 kg / týden',
+    aggressive: '~0,75 kg / týden',
+  },
+  gain: {
+    mild: 'pozvolný nárůst',
+    moderate: 'standardní bulk',
+    aggressive: 'rychlý nárůst',
+  },
+  maintain: { mild: '', moderate: '', aggressive: '' },
+};
+
+// Backwards-compat shim: old callers passed only goal. Defaults to moderate.
+export const GOAL_KCAL_ADJUST: Record<Goal, number> = {
+  lose: INTENSITY_KCAL.lose.moderate,
+  maintain: 0,
+  gain: INTENSITY_KCAL.gain.moderate,
+};
+
+function adjustFor(goal: Goal, intensity: Intensity = 'moderate'): number {
+  return INTENSITY_KCAL[goal][intensity];
+}
 
 export function mifflinStJeor(sex: Sex, weightKg: number, heightCm: number, age: number): number {
   const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
@@ -40,10 +74,11 @@ export function computeTargets(
   age: number,
   activity: ActivityLevel,
   goal: Goal,
+  intensity: Intensity = 'moderate',
 ): Targets {
   const bmr = mifflinStJeor(sex, weightKg, heightCm, age);
   const tdee = bmr * ACTIVITY_FACTORS[activity];
-  const kcal = Math.max(1200, Math.round(tdee + GOAL_KCAL_ADJUST[goal]));
+  const kcal = Math.max(1200, Math.round(tdee + adjustFor(goal, intensity)));
 
   const protein_g = Math.round(weightKg * (goal === 'lose' ? 2.0 : 1.8));
   const fat_g = Math.round((kcal * 0.27) / 9);
@@ -63,10 +98,11 @@ export function dynamicDailyTargets(
   activity: ActivityLevel,
   goal: Goal,
   burnedToday: number,
+  intensity: Intensity = 'moderate',
 ): Targets {
   const bmr = mifflinStJeor(sex, weightKg, heightCm, age);
   const base = bmr * ACTIVITY_FACTORS[activity];
-  const kcal = Math.max(1200, Math.round(base + Math.max(0, burnedToday) + GOAL_KCAL_ADJUST[goal]));
+  const kcal = Math.max(1200, Math.round(base + Math.max(0, burnedToday) + adjustFor(goal, intensity)));
   const protein_g = Math.round(weightKg * (goal === 'lose' ? 2.0 : 1.8));
   const fat_g = Math.round((kcal * 0.27) / 9);
   const carbs_g = Math.max(0, Math.round((kcal - protein_g * 4 - fat_g * 9) / 4));

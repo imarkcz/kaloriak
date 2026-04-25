@@ -56,7 +56,7 @@ export default function Today() {
   const profile = data.profile;
   const baseTargets = profile?.targets ?? { kcal: 2000, protein_g: 150, carbs_g: 220, fat_g: 65 };
   const targets = profile?.useDynamicTdee
-    ? dynamicDailyTargets(profile.sex, profile.weightKg, profile.heightCm, profile.age, profile.activity, profile.goal, burned)
+    ? dynamicDailyTargets(profile.sex, profile.weightKg, profile.heightCm, profile.age, profile.activity, profile.goal, burned, profile.goalIntensity ?? 'moderate')
     : { ...baseTargets, kcal: baseTargets.kcal + burned };
 
   const waterMl = data.water?.[date] ?? 0;

@@ -4,6 +4,10 @@ export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'ver
 
 export type Goal = 'lose' | 'maintain' | 'gain';
 
+// How aggressive the deficit/surplus should be. MyFitnessPal-style:
+// mild ≈ 0.25 kg/týden, moderate ≈ 0.5 kg/týden, aggressive ≈ 0.75 kg/týden.
+export type Intensity = 'mild' | 'moderate' | 'aggressive';
+
 export interface Targets {
   kcal: number;
   protein_g: number;
@@ -20,11 +24,12 @@ export interface UserProfile {
   targetWeightKg?: number;
   activity: ActivityLevel;
   goal: Goal;
+  goalIntensity?: Intensity;
   targets: Targets;
   avatarDataUrl?: string;
-  // When true, daily kcal target = BMR * 1.2 (sedentary baseline) + logged
-  // activity kcal + goal adjust. When false, the static profile activity
-  // multiplier is used and aktivity are eaten back via the Today ring math.
+  // When true, daily kcal target = BMR × user activity factor + logged
+  // activity kcal + goal adjust (MyFitnessPal NEAT method). When false,
+  // the static profile target is used and activities eaten back via Today.
   useDynamicTdee?: boolean;
 }
 

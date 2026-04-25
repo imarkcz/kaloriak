@@ -11,6 +11,8 @@ import { recentFoodsFromMeals, searchRecent } from '../lib/recentFoods';
 import BarcodeScanner from '../components/BarcodeScanner';
 import FoodThumb from '../components/FoodThumb';
 import { haptic } from '../lib/haptics';
+import { analyzeMeal, type MealInsight } from '../lib/mealInsights';
+import MealInsightModal from '../components/MealInsightModal';
 
 type Mode = 'photo' | 'search' | 'manual';
 type PhotoStage = 'pick' | 'analyzing' | 'confirm' | 'error';
@@ -55,6 +57,10 @@ export default function AddMeal() {
   const [photoProt, setPhotoProt] = useState(0);
   const [photoCarbs, setPhotoCarbs] = useState(0);
   const [photoFat, setPhotoFat] = useState(0);
+
+  // After save: show one-shot insight popup, then navigate home on dismiss.
+  const [insight, setInsight] = useState<MealInsight | null>(null);
+  const [insightFor, setInsightFor] = useState<{ name: string; kcal: number } | null>(null);
 
   // search state
   const [query, setQuery] = useState('');
@@ -158,41 +164,47 @@ export default function AddMeal() {
     }
   }
 
+  function showInsightThenNav(meal: { name: string; grams: number; kcal: number; protein_g: number; carbs_g: number; fat_g: number }) {
+    setInsight(analyzeMeal(meal));
+    setInsightFor({ name: meal.name, kcal: meal.kcal });
+  }
+
   function handleSavePhoto() {
     if (!analysis) return;
     const ratio = analysis.grams > 0 ? photoGrams / analysis.grams : 1;
-    addMeal({
-      id: crypto.randomUUID(),
-      date: todayISO(),
-      createdAt: Date.now(),
+    const m = {
       name: photoName.trim() || analysis.name,
       grams: photoGrams,
       kcal: Math.max(0, Math.round(photoKcal * ratio)),
       protein_g: +(Math.max(0, photoProt) * ratio).toFixed(1),
       carbs_g: +(Math.max(0, photoCarbs) * ratio).toFixed(1),
       fat_g: +(Math.max(0, photoFat) * ratio).toFixed(1),
-      imageDataUrl,
-      note: analysis.note,
-    });
-    haptic('success');
-    navigate('/', { replace: true });
-  }
-
-  function handleSaveManual() {
-    if (!mName.trim() || mKcal <= 0) return;
+    };
     addMeal({
       id: crypto.randomUUID(),
       date: todayISO(),
       createdAt: Date.now(),
+      ...m,
+      imageDataUrl,
+      note: analysis.note,
+    });
+    haptic('success');
+    showInsightThenNav(m);
+  }
+
+  function handleSaveManual() {
+    if (!mName.trim() || mKcal <= 0) return;
+    const m = {
       name: mName.trim(),
       grams: mGrams,
       kcal: Math.round(mKcal),
       protein_g: +mProt.toFixed(1),
       carbs_g: +mCarbs.toFixed(1),
       fat_g: +mFat.toFixed(1),
-    });
+    };
+    addMeal({ id: crypto.randomUUID(), date: todayISO(), createdAt: Date.now(), ...m });
     haptic('success');
-    navigate('/', { replace: true });
+    showInsightThenNav(m);
   }
 
   function handlePickFood(f: FoodSearchResult) {
@@ -203,20 +215,17 @@ export default function AddMeal() {
   function handleSavePicked() {
     if (!picked) return;
     const ratio = picked.per > 0 ? pickedGrams / picked.per : 1;
-    addMeal({
-      id: crypto.randomUUID(),
-      date: todayISO(),
-      createdAt: Date.now(),
+    const m = {
       name: picked.brand ? `${picked.name} (${picked.brand})` : picked.name,
       grams: pickedGrams,
       kcal: Math.round(picked.kcal * ratio),
       protein_g: +(picked.protein_g * ratio).toFixed(1),
       carbs_g: +(picked.carbs_g * ratio).toFixed(1),
       fat_g: +(picked.fat_g * ratio).toFixed(1),
-      imageDataUrl: picked.imageUrl,
-    });
+    };
+    addMeal({ id: crypto.randomUUID(), date: todayISO(), createdAt: Date.now(), ...m, imageDataUrl: picked.imageUrl });
     haptic('success');
-    navigate('/', { replace: true });
+    showInsightThenNav(m);
   }
 
   async function handleAiEstimate() {
@@ -689,6 +698,17 @@ export default function AddMeal() {
           box-shadow: 0 0 0 4px rgba(249,115,102,0.12);
         }
       `}</style>
+
+      <MealInsightModal
+        insight={insight}
+        mealName={insightFor?.name ?? ''}
+        kcal={insightFor?.kcal ?? 0}
+        onClose={() => {
+          setInsight(null);
+          setInsightFor(null);
+          navigate('/', { replace: true });
+        }}
+      />
     </div>
   );
 }

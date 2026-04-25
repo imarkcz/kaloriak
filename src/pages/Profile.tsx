@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { haptic } from '../lib/haptics';
 import { useApp } from '../state/AppState';
-import type { ActivityLevel, Goal, Sex } from '../types';
-import { ACTIVITY_LABELS, GOAL_LABELS, computeTargets, dynamicDailyTargets } from '../lib/tdee';
+import type { ActivityLevel, Goal, Intensity, Sex } from '../types';
+import { ACTIVITY_LABELS, GOAL_LABELS, INTENSITY_DETAIL, INTENSITY_LABEL, computeTargets, dynamicDailyTargets } from '../lib/tdee';
 import { useNavigate } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 
@@ -39,6 +39,7 @@ export default function Profile() {
   const [targetWeightKg, setTargetWeightKg] = useState(p?.targetWeightKg ?? p?.weightKg ?? 75);
   const [activity, setActivityLocal] = useState<ActivityLevel>(p?.activity ?? 'moderate');
   const [goal, setGoalLocal] = useState<Goal>(p?.goal ?? 'maintain');
+  const [intensity, setIntensityLocal] = useState<Intensity>(p?.goalIntensity ?? 'moderate');
   const [useDynamicTdee, setUseDynamicTdeeLocal] = useState<boolean>(p?.useDynamicTdee ?? true);
 
   // Goal/activity/toggle auto-save — they directly affect daily targets,
@@ -51,16 +52,22 @@ export default function Profile() {
   function setGoal(g: Goal) {
     setGoalLocal(g);
     if (p) {
-      // Use local state (sex/weight/height/age) so unsaved slider edits are honored.
-      const newTargets = computeTargets(sex, weightKg, heightCm, age, activity, g);
-      setProfile({ ...p, sex, weightKg, heightCm, age, goal: g, targets: newTargets });
+      const newTargets = computeTargets(sex, weightKg, heightCm, age, activity, g, intensity);
+      setProfile({ ...p, sex, weightKg, heightCm, age, goal: g, goalIntensity: intensity, targets: newTargets });
     }
   }
   function setActivity(a: ActivityLevel) {
     setActivityLocal(a);
     if (p) {
-      const newTargets = computeTargets(sex, weightKg, heightCm, age, a, goal);
-      setProfile({ ...p, sex, weightKg, heightCm, age, activity: a, targets: newTargets });
+      const newTargets = computeTargets(sex, weightKg, heightCm, age, a, goal, intensity);
+      setProfile({ ...p, sex, weightKg, heightCm, age, activity: a, goalIntensity: intensity, targets: newTargets });
+    }
+  }
+  function setIntensity(i: Intensity) {
+    setIntensityLocal(i);
+    if (p) {
+      const newTargets = computeTargets(sex, weightKg, heightCm, age, activity, goal, i);
+      setProfile({ ...p, sex, weightKg, heightCm, age, goal, goalIntensity: i, targets: newTargets });
     }
   }
 
@@ -81,12 +88,12 @@ export default function Profile() {
   }
 
   function handleSave() {
-    const targets = computeTargets(sex, weightKg, heightCm, age, activity, goal);
+    const targets = computeTargets(sex, weightKg, heightCm, age, activity, goal, intensity);
     setProfile({
       name: name.trim() || 'Já',
       sex, age, heightCm, weightKg,
       targetWeightKg,
-      activity, goal, targets,
+      activity, goal, goalIntensity: intensity, targets,
       avatarDataUrl,
       useDynamicTdee,
     });
@@ -104,8 +111,8 @@ export default function Profile() {
   }
 
   const targets = useDynamicTdee
-    ? dynamicDailyTargets(sex, weightKg, heightCm, age, activity, goal, 0)
-    : computeTargets(sex, weightKg, heightCm, age, activity, goal);
+    ? dynamicDailyTargets(sex, weightKg, heightCm, age, activity, goal, 0, intensity)
+    : computeTargets(sex, weightKg, heightCm, age, activity, goal, intensity);
 
   return (
     <div className="min-h-dvh pt-safe pb-32">
@@ -168,7 +175,7 @@ export default function Profile() {
             </div>
             {useDynamicTdee && (
               <p className="text-[11px] text-ink-mute mt-2 leading-snug">
-                V dynamickém režimu se tato hodnota ignoruje — cíl se počítá z BMR + reálně spálených kcal.
+                Tvoje úroveň aktivity tvoří základ denního cíle. Logované tréninky se přičítají navíc.
               </p>
             )}
           </Row>
@@ -181,6 +188,29 @@ export default function Profile() {
               ))}
             </div>
           </Row>
+          {goal !== 'maintain' && (
+            <Row label={goal === 'lose' ? 'Tempo hubnutí' : 'Tempo nabírání'}>
+              <div className="grid grid-cols-3 gap-2">
+                {(['mild', 'moderate', 'aggressive'] as Intensity[]).map((i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => { haptic('tap'); setIntensity(i); }}
+                    className={`px-2 py-2.5 rounded-2xl font-semibold text-xs transition-all ${
+                      intensity === i
+                        ? 'bg-grad-coral text-white shadow-coral-soft'
+                        : 'bg-white/[0.04] text-ink-soft border border-white/5'
+                    }`}
+                  >
+                    <div className="leading-none">{INTENSITY_LABEL[i]}</div>
+                    <div className={`text-[9px] mt-1 font-medium tabular-nums ${intensity === i ? 'text-white/85' : 'text-ink-mute'}`}>
+                      {INTENSITY_DETAIL[goal][i]}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </Row>
+          )}
           <ToggleRow
             label="Dynamický cíl podle aktivit"
             description="Cíl kcal se počítá z BMR + skutečně spálených kalorií místo statického multiplikátoru. Přesnější než pevně nastavená úroveň aktivity."
