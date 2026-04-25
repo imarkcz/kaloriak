@@ -6,7 +6,27 @@ import { useNavigate } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 
 export default function Profile() {
-  const { data, user, setProfile, setApiKey, resetAll, signOutUser } = useApp();
+  const { data, user, setProfile, setApiKey, resetAll, signOutUser, reloadFromCloud, forceUploadToCloud } = useApp();
+  const [syncMsg, setSyncMsg] = useState('');
+  const [syncing, setSyncing] = useState(false);
+
+  async function handleReload() {
+    setSyncing(true);
+    setSyncMsg('');
+    const ok = await reloadFromCloud();
+    setSyncMsg(ok ? '✓ Data načtena z cloudu' : 'V cloudu nejsou žádná data');
+    setSyncing(false);
+    setTimeout(() => setSyncMsg(''), 3000);
+  }
+
+  async function handleUpload() {
+    setSyncing(true);
+    setSyncMsg('');
+    const ok = await forceUploadToCloud();
+    setSyncMsg(ok ? '✓ Data nahrána do cloudu' : 'Musíš být přihlášen');
+    setSyncing(false);
+    setTimeout(() => setSyncMsg(''), 3000);
+  }
   const navigate = useNavigate();
   const p = data.profile;
 
@@ -168,13 +188,43 @@ export default function Profile() {
         </button>
 
         {user && (
-          <button
-            onClick={signOutUser}
-            className="w-full py-3 rounded-2xl text-ink-mute text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-            Odhlásit se ({user.email})
-          </button>
+          <>
+            <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-4 mt-2">
+              <h3 className="text-sm font-bold text-ink mb-1">Cloud sync</h3>
+              <p className="text-xs text-ink-soft mb-3">
+                Pokud nevidíš svoje data, nebo chceš zálohu vynutit ručně.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleReload}
+                  disabled={syncing}
+                  className="py-2.5 rounded-xl bg-white/5 ring-1 ring-white/10 text-ink text-xs font-semibold active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  ⬇ Načíst z cloudu
+                </button>
+                <button
+                  onClick={handleUpload}
+                  disabled={syncing}
+                  className="py-2.5 rounded-xl bg-white/5 ring-1 ring-white/10 text-ink text-xs font-semibold active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  ⬆ Nahrát do cloudu
+                </button>
+              </div>
+              {syncMsg && (
+                <p className={`text-center text-xs mt-2 ${syncMsg.startsWith('✓') ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {syncMsg}
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={signOutUser}
+              className="w-full py-3 rounded-2xl text-ink-mute text-sm font-medium active:scale-95 transition-transform flex items-center justify-center gap-2"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+              Odhlásit se ({user.email})
+            </button>
+          </>
         )}
 
         <p className="text-center text-xs text-ink-mute pt-2">

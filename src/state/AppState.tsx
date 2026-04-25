@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { User } from 'firebase/auth';
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { browserLocalPersistence, onAuthStateChanged, setPersistence, signInWithPopup, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../lib/firebase';
 import type { Activity, AppData, Meal, UserProfile } from '../types';
@@ -63,6 +63,7 @@ interface AppContextValue {
   data: AppData;
   user: User | null;
   authLoading: boolean;
+  dataLoading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
   setProfile: (p: UserProfile) => void;
@@ -74,6 +75,8 @@ interface AppContextValue {
   deleteActivity: (id: string) => void;
   setWater: (date: string, ml: number) => void;
   resetAll: () => void;
+  reloadFromCloud: () => Promise<boolean>;
+  forceUploadToCloud: () => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -82,37 +85,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(() => loadLocal());
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userRef = useRef<User | null>(null);
+  const skipNextSync = useRef(false);
   userRef.current = user;
+
+  // Set persistence explicitly — important for iOS PWA standalone mode where
+  // default IndexedDB persistence may not survive sessions.
+  useEffect(() => {
+    setPersistence(auth, browserLocalPersistence).catch(() => {
+      // Falls back to in-memory if browser blocks IndexedDB
+    });
+  }, []);
 
   // Listen for auth state changes
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
-      if (firebaseUser) {
-        // Load cloud data and merge with local (cloud wins for profile/meals,
-        // local geminiApiKey stays since it's not synced for privacy)
+
+      if (!firebaseUser) {
+        setAuthLoading(false);
+        return;
+      }
+
+      setDataLoading(true);
+      try {
         const cloud = await loadFromFirestore(firebaseUser.uid);
-        if (cloud) {
-          const local = loadLocal();
+        const local = loadLocal();
+
+        if (cloud && (cloud.onboarded || cloud.meals.length > 0 || cloud.profile)) {
+          // Cloud has real data — merge cloud + local blobs
+          skipNextSync.current = true;
           setData({
             ...cloud,
-            // keep local API key — it's sensitive and device-specific
             geminiApiKey: local.geminiApiKey || cloud.geminiApiKey,
-            // keep local avatar (stripped in cloud)
             profile: cloud.profile
               ? { ...cloud.profile, avatarDataUrl: local.profile?.avatarDataUrl }
               : local.profile,
-            // merge meal imageDataUrls back from local cache
             meals: cloud.meals.map((cm) => {
               const lm = local.meals.find((m) => m.id === cm.id);
               return lm ? { ...cm, imageDataUrl: lm.imageDataUrl } : cm;
             }),
           });
+        } else if (local.onboarded || local.meals.length > 0 || local.profile) {
+          // Cloud empty but local has data → upload local to cloud immediately
+          await saveToFirestore(firebaseUser.uid, local);
+          // local data is already in state, no setData needed
         }
+      } finally {
+        setDataLoading(false);
+        setAuthLoading(false);
       }
-      setAuthLoading(false);
     });
     return unsub;
   }, []);
@@ -120,6 +144,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Sync to localStorage always, to Firestore (debounced) when logged in
   useEffect(() => {
     saveLocal(data);
+    if (skipNextSync.current) {
+      skipNextSync.current = false;
+      return;
+    }
     if (syncTimer.current) clearTimeout(syncTimer.current);
     if (userRef.current) {
       syncTimer.current = setTimeout(() => {
@@ -173,9 +201,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setData(DEFAULT);
   }, []);
 
+  const reloadFromCloud = useCallback(async () => {
+    if (!userRef.current) return false;
+    setDataLoading(true);
+    try {
+      const cloud = await loadFromFirestore(userRef.current.uid);
+      if (!cloud) return false;
+      const local = loadLocal();
+      skipNextSync.current = true;
+      setData({
+        ...cloud,
+        geminiApiKey: local.geminiApiKey || cloud.geminiApiKey,
+        profile: cloud.profile
+          ? { ...cloud.profile, avatarDataUrl: local.profile?.avatarDataUrl }
+          : local.profile,
+        meals: cloud.meals.map((cm) => {
+          const lm = local.meals.find((m) => m.id === cm.id);
+          return lm ? { ...cm, imageDataUrl: lm.imageDataUrl } : cm;
+        }),
+      });
+      return true;
+    } finally {
+      setDataLoading(false);
+    }
+  }, []);
+
+  const forceUploadToCloud = useCallback(async () => {
+    if (!userRef.current) return false;
+    await saveToFirestore(userRef.current.uid, data);
+    return true;
+  }, [data]);
+
   const value = useMemo<AppContextValue>(
-    () => ({ data, user, authLoading, signInWithGoogle, signOutUser, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll }),
-    [data, user, authLoading, signInWithGoogle, signOutUser, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll],
+    () => ({ data, user, authLoading, dataLoading, signInWithGoogle, signOutUser, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll, reloadFromCloud, forceUploadToCloud }),
+    [data, user, authLoading, dataLoading, signInWithGoogle, signOutUser, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll, reloadFromCloud, forceUploadToCloud],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

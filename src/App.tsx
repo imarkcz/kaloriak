@@ -9,11 +9,12 @@ import BottomNav from './components/BottomNav';
 import LoginScreen from './components/LoginScreen';
 
 function Shell() {
-  const { data, user, authLoading } = useApp();
+  const { data, user, authLoading, dataLoading } = useApp();
   const location = useLocation();
 
-  // Wait for Firebase auth to resolve
-  if (authLoading) {
+  // Wait for Firebase auth AND initial data load — prevents redirect to
+  // Onboarding before cloud data arrives
+  if (authLoading || dataLoading) {
     return (
       <div className="min-h-dvh flex items-center justify-center">
         <svg className="animate-spin w-8 h-8 text-coral-400" viewBox="0 0 24 24" fill="none">

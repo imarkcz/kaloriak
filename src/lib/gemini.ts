@@ -41,17 +41,17 @@ async function callWithRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T
   throw lastError;
 }
 
-// Map raw Gemini errors (often a JSON dump) to a short Czech message the UI
-// can display directly.
+// Map raw AI errors to a short Czech message the UI can display directly.
+// Provider-agnostic (works for Gemini/OpenAI/Claude fallback chain).
 export function humanizeGeminiError(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e);
   const m = raw.toLowerCase();
+  if (m.includes('všechny ai') || m.includes('přetížené'))
+    return 'AI je dočasně nedostupná. Zkus to za chvíli, nebo zadej hodnoty ručně.';
   if (m.includes('503') || m.includes('unavailable') || m.includes('overloaded') || m.includes('high demand'))
-    return 'Gemini je momentálně přetížený. Zkus to za chvíli, nebo přidej hodnoty ručně.';
-  if (m.includes('429') || m.includes('resource_exhausted') || m.includes('quota'))
-    return 'Vyčerpaný limit Gemini klíče. Počkej minutu nebo použij jiný klíč.';
-  if (m.includes('401') || m.includes('api key') || m.includes('permission_denied') || m.includes('invalid_argument'))
-    return 'Neplatný Gemini API klíč. Otevři profil a zkontroluj ho.';
+    return 'AI je momentálně přetížená. Zkus to za chvíli, nebo zadej hodnoty ručně.';
+  if (m.includes('429') || m.includes('resource_exhausted') || m.includes('quota') || m.includes('rate limit'))
+    return 'Denní limit AI je vyčerpaný. Zkus to za chvíli nebo zadej ručně.';
   if (m.includes('safety'))
     return 'AI odmítla odpovědět (safety filter). Zkus jiný název nebo zadej ručně.';
   if (m.includes('network') || m.includes('failed to fetch'))
