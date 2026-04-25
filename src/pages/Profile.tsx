@@ -247,12 +247,14 @@ export default function Profile() {
           Smazat všechna data
         </button>
 
+        <UpdateCard />
+
         {user && (
           <>
             <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-4 mt-2">
-              <h3 className="text-sm font-bold text-ink mb-1">Cloud sync</h3>
+              <h3 className="text-sm font-bold text-ink mb-1">Cloud záloha</h3>
               <p className="text-xs text-ink-soft mb-3">
-                Pokud nevidíš svoje data, nebo chceš zálohu vynutit ručně.
+                Tvá data jsou bezpečně uložená v Google cloudu — přežijí přeinstalaci aplikace i přechod na jiný telefon.
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -311,6 +313,50 @@ export default function Profile() {
           box-shadow: 0 0 0 4px rgba(249,115,102,0.12);
         }
       `}</style>
+    </div>
+  );
+}
+
+function UpdateCard() {
+  const [status, setStatus] = useState<'idle' | 'checking' | 'uptodate' | 'found'>('idle');
+
+  async function check() {
+    setStatus('checking');
+    haptic('tap');
+    const trigger = (window as unknown as { __kaloriakCheckUpdate?: () => Promise<void> }).__kaloriakCheckUpdate;
+    if (trigger) {
+      try { await trigger(); } catch { /* ignore */ }
+    }
+    // Give the SW a beat to fire its 'updatefound' event. If a new version
+    // is available, UpdateBanner will appear at the top automatically.
+    setTimeout(() => {
+      setStatus('uptodate');
+      setTimeout(() => setStatus('idle'), 2400);
+    }, 1500);
+  }
+
+  return (
+    <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-4 mt-2">
+      <h3 className="text-sm font-bold text-ink mb-1">Verze aplikace</h3>
+      <p className="text-xs text-ink-soft mb-3">
+        Pokud je k dispozici novější verze, objeví se nahoře oranžový pruh „Aktualizovat".
+      </p>
+      <button
+        onClick={check}
+        disabled={status === 'checking'}
+        className="w-full py-2.5 rounded-xl bg-white/5 ring-1 ring-white/10 text-ink text-xs font-semibold active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+      >
+        {status === 'checking' ? (
+          <>
+            <span className="inline-block w-3 h-3 border-2 border-white/30 border-t-coral-400 rounded-full animate-spin" />
+            Hledám aktualizace…
+          </>
+        ) : status === 'uptodate' ? (
+          '✓ Máš aktuální verzi'
+        ) : (
+          '🔄 Hledat aktualizace'
+        )}
+      </button>
     </div>
   );
 }

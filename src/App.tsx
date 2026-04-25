@@ -7,6 +7,7 @@ import AddActivity from './pages/AddActivity';
 import Profile from './pages/Profile';
 import BottomNav from './components/BottomNav';
 import LoginScreen from './components/LoginScreen';
+import UpdateBanner from './components/UpdateBanner';
 
 function Shell() {
   const { data, user, authLoading, dataLoading } = useApp();
@@ -58,6 +59,7 @@ export default function App() {
   return (
     <AppProvider>
       <BrowserRouter>
+        <UpdateBanner />
         <Shell />
       </BrowserRouter>
     </AppProvider>
