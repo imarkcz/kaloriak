@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { haptic } from '../lib/haptics';
 import { useApp } from '../state/AppState';
 import type { ActivityLevel, Goal, Intensity, Sex } from '../types';
-import { ACTIVITY_LABELS, GOAL_LABELS, INTENSITY_DETAIL, INTENSITY_LABEL, computeTargets, dynamicDailyTargets } from '../lib/tdee';
+import { ACTIVITY_FACTORS, ACTIVITY_LABELS, GOAL_LABELS, INTENSITY_DETAIL, INTENSITY_KCAL, INTENSITY_LABEL, computeTargets, dynamicDailyTargets, mifflinStJeor } from '../lib/tdee';
 import { useNavigate } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 
@@ -230,6 +230,15 @@ export default function Profile() {
             <Stat label="Sacharidy" value={targets.carbs_g} unit="g" color="text-macro-carbs" bg="bg-macro-carbs/15" />
             <Stat label="Tuky" value={targets.fat_g} unit="g" color="text-macro-fat" bg="bg-macro-fat/15" />
           </div>
+          <CalcBreakdown
+            sex={sex}
+            weightKg={weightKg}
+            heightCm={heightCm}
+            age={age}
+            activity={activity}
+            goal={goal}
+            intensity={intensity}
+          />
         </Card>
 
 
@@ -289,8 +298,8 @@ export default function Profile() {
           </>
         )}
 
-        <p className="text-center text-xs text-ink-mute pt-2">
-          Kaloriak • data uložena v cloudu
+        <p className="text-center text-[10px] text-ink-mute pt-2 font-mono tabular-nums">
+          Kaloriak • build {__BUILD_ID__}
         </p>
       </main>
 
@@ -317,8 +326,29 @@ export default function Profile() {
   );
 }
 
+function CalcBreakdown({
+  sex, weightKg, heightCm, age, activity, goal, intensity,
+}: {
+  sex: Sex; weightKg: number; heightCm: number; age: number;
+  activity: ActivityLevel; goal: Goal; intensity: Intensity;
+}) {
+  const bmr = Math.round(mifflinStJeor(sex, weightKg, heightCm, age));
+  const factor = ACTIVITY_FACTORS[activity];
+  const tdee = Math.round(bmr * factor);
+  const adjust = INTENSITY_KCAL[goal][intensity];
+  const sign = adjust >= 0 ? '+' : '−';
+  return (
+    <div className="mt-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/5 p-3 text-[11px] text-ink-mute leading-relaxed font-mono">
+      <div className="flex justify-between"><span>BMR (Mifflin-St Jeor)</span><span className="tabular-nums text-ink">{bmr} kcal</span></div>
+      <div className="flex justify-between"><span>× aktivita ({factor.toFixed(3)})</span><span className="tabular-nums text-ink">{tdee} kcal</span></div>
+      <div className="flex justify-between"><span>{sign} cíl ({goal === 'maintain' ? 'udržet' : INTENSITY_LABEL[intensity].toLowerCase()})</span><span className="tabular-nums text-ink">{sign}{Math.abs(adjust)} kcal</span></div>
+      <div className="flex justify-between border-t border-white/5 mt-1.5 pt-1.5"><span className="text-ink font-bold">= cíl</span><span className="tabular-nums text-ink font-bold">{Math.max(1200, tdee + adjust)} kcal</span></div>
+    </div>
+  );
+}
+
 function UpdateCard() {
-  const [status, setStatus] = useState<'idle' | 'checking' | 'uptodate' | 'found'>('idle');
+  const [status, setStatus] = useState<'idle' | 'checking' | 'uptodate'>('idle');
 
   async function check() {
     setStatus('checking');
@@ -327,19 +357,36 @@ function UpdateCard() {
     if (trigger) {
       try { await trigger(); } catch { /* ignore */ }
     }
-    // Give the SW a beat to fire its 'updatefound' event. If a new version
-    // is available, UpdateBanner will appear at the top automatically.
     setTimeout(() => {
       setStatus('uptodate');
       setTimeout(() => setStatus('idle'), 2400);
     }, 1500);
   }
 
+  // Hard reset — unregister SW + clear all caches + reload. Keeps localStorage
+  // (so user stays logged in / keeps profile). Cloud data is untouched.
+  async function hardReset() {
+    if (!window.confirm('Toto vynutí stažení nejnovější verze. Tvoje data v cloudu i přihlášení zůstanou. Pokračovat?')) return;
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } finally {
+      // Force reload bypassing HTTP cache
+      window.location.reload();
+    }
+  }
+
   return (
-    <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-4 mt-2">
+    <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-4 mt-2 space-y-2">
       <h3 className="text-sm font-bold text-ink mb-1">Verze aplikace</h3>
-      <p className="text-xs text-ink-soft mb-3">
-        Pokud je k dispozici novější verze, objeví se nahoře oranžový pruh „Aktualizovat".
+      <p className="text-xs text-ink-soft mb-2">
+        Pokud je k dispozici novější verze, objeví se nahoře oranžový pruh „Aktualizovat". Pokud máš pocit, že máš starou verzi, použij dole „Vynutit aktualizaci".
       </p>
       <button
         onClick={check}
@@ -356,6 +403,12 @@ function UpdateCard() {
         ) : (
           '🔄 Hledat aktualizace'
         )}
+      </button>
+      <button
+        onClick={hardReset}
+        className="w-full py-2.5 rounded-xl bg-amber-500/15 ring-1 ring-amber-400/30 text-amber-300 text-xs font-semibold active:scale-95 transition-transform flex items-center justify-center gap-2"
+      >
+        ⚡ Vynutit aktualizaci (smaže cache)
       </button>
     </div>
   );
