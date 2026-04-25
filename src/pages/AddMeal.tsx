@@ -362,7 +362,12 @@ export default function AddMeal() {
                 <>
                   {searchResults.map((r) => <ResultCard key={r.id} item={r} onPick={handlePickFood} />)}
                   {offLoading && (
-                    <div className="text-center py-3 text-ink-mute text-xs">Hledám online…</div>
+                    <div className="flex items-center justify-center gap-2 py-3 text-ink-soft text-xs">
+                      <svg className="animate-spin w-4 h-4 text-coral-400" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4" strokeDashoffset="10" strokeLinecap="round"/>
+                      </svg>
+                      <span>Hledám i v Open Food Facts (3M produktů)…</span>
+                    </div>
                   )}
                   {!offLoading && (
                     <AiEstimateBlock
