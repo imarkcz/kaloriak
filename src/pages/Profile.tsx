@@ -377,8 +377,9 @@ function UpdateCard() {
         await Promise.all(keys.map((k) => caches.delete(k)));
       }
     } finally {
-      // Force reload bypassing HTTP cache
-      window.location.reload();
+      // Navigate to root before reload — without an active SW, Vercel won't
+      // SPA-fallback a sub-route reload (returns 404 until rewrites kick in).
+      window.location.replace('/');
     }
   }
 
