@@ -14,6 +14,25 @@ import { haptic } from '../lib/haptics';
 
 type Mode = 'photo' | 'search' | 'manual';
 type PhotoStage = 'pick' | 'analyzing' | 'confirm' | 'error';
+type PrepMethod = 'asis' | 'airfryer' | 'oven' | 'boiled';
+
+// Multipliers applied to AI's fat estimate when user corrects the cooking
+// method. AI assumes the typical (often deep-fried) preparation; airfryer
+// uses ~⅓ the oil, oven baking less still, boiled/steamed almost none.
+// kcal is recomputed from removed fat (1 g fat ≈ 9 kcal) so protein/carbs
+// are unaffected.
+const FAT_MULT: Record<PrepMethod, number> = {
+  asis: 1.0,
+  airfryer: 0.6,
+  oven: 0.75,
+  boiled: 0.4,
+};
+const PREP_LABEL: Record<PrepMethod, string> = {
+  asis: 'Bez úpravy',
+  airfryer: 'Airfryer',
+  oven: 'V troubě',
+  boiled: 'Vařené',
+};
 
 export default function AddMeal() {
   const { data, addMeal } = useApp();
@@ -29,6 +48,13 @@ export default function AddMeal() {
   const [analysis, setAnalysis] = useState<FoodAnalysis | null>(null);
   const [photoError, setPhotoError] = useState<string>('');
   const [photoGrams, setPhotoGrams] = useState(0);
+  const [prep, setPrep] = useState<PrepMethod>('asis');
+  // Editable photo fields — initialized from AI analysis but user can override
+  const [photoName, setPhotoName] = useState('');
+  const [photoKcal, setPhotoKcal] = useState(0);
+  const [photoProt, setPhotoProt] = useState(0);
+  const [photoCarbs, setPhotoCarbs] = useState(0);
+  const [photoFat, setPhotoFat] = useState(0);
 
   // search state
   const [query, setQuery] = useState('');
@@ -118,6 +144,13 @@ export default function AddMeal() {
       const result = await analyzeFoodImage(data.geminiApiKey, base64, mimeType);
       setAnalysis(result);
       setPhotoGrams(Math.round(result.grams));
+      setPrep('asis');
+      // Seed editable fields from AI's per-portion estimate
+      setPhotoName(result.name);
+      setPhotoKcal(result.kcal);
+      setPhotoProt(result.protein_g);
+      setPhotoCarbs(result.carbs_g);
+      setPhotoFat(result.fat_g);
       setPhotoStage('confirm');
     } catch (e) {
       setPhotoError(humanizeGeminiError(e));
@@ -132,12 +165,12 @@ export default function AddMeal() {
       id: crypto.randomUUID(),
       date: todayISO(),
       createdAt: Date.now(),
-      name: analysis.name,
+      name: photoName.trim() || analysis.name,
       grams: photoGrams,
-      kcal: Math.round(analysis.kcal * ratio),
-      protein_g: +(analysis.protein_g * ratio).toFixed(1),
-      carbs_g: +(analysis.carbs_g * ratio).toFixed(1),
-      fat_g: +(analysis.fat_g * ratio).toFixed(1),
+      kcal: Math.max(0, Math.round(photoKcal * ratio)),
+      protein_g: +(Math.max(0, photoProt) * ratio).toFixed(1),
+      carbs_g: +(Math.max(0, photoCarbs) * ratio).toFixed(1),
+      fat_g: +(Math.max(0, photoFat) * ratio).toFixed(1),
       imageDataUrl,
       note: analysis.note,
     });
@@ -451,11 +484,17 @@ export default function AddMeal() {
               </div>
             )}
             <div className="flex items-start justify-between gap-2">
-              <h2 className="text-2xl font-extrabold tracking-tight text-ink">{analysis.name}</h2>
+              <input
+                value={photoName}
+                onChange={(e) => setPhotoName(e.target.value)}
+                className="text-2xl font-extrabold tracking-tight text-ink bg-transparent border-b border-white/10 focus:border-coral-400 outline-none flex-1 pb-1"
+              />
               <ConfidenceBadge level={analysis.confidence} />
             </div>
-            {analysis.note && <p className="text-xs text-ink-mute mt-1.5">{analysis.note}</p>}
-            <div className="mt-5 glass rounded-3xl p-5">
+            <p className="text-[11px] text-ink-mute mt-1.5">
+              {analysis.note ? `${analysis.note} · ` : ''}Klepni na název nebo hodnoty pro úpravu.
+            </p>
+            <div className="mt-4 glass rounded-3xl p-5">
               <div className="flex justify-between items-baseline">
                 <span className="text-sm font-medium text-ink">Hmotnost porce</span>
                 <span className="text-base font-bold tabular-nums text-ink">{photoGrams} g</span>
@@ -463,17 +502,57 @@ export default function AddMeal() {
               <input type="range" min={10} max={1200} step={5} value={photoGrams} onChange={(e) => setPhotoGrams(Number(e.target.value))} className="w-full mt-3" />
               <div className="flex justify-between text-[10px] text-ink-mute mt-1 tabular-nums"><span>10 g</span><span>1200 g</span></div>
             </div>
-            <ScaledStats picked={{
-              source: 'local',
-              id: 'tmp',
-              name: analysis.name,
-              per: analysis.grams,
-              defaultGrams: analysis.grams,
-              kcal: analysis.kcal,
-              protein_g: analysis.protein_g,
-              carbs_g: analysis.carbs_g,
-              fat_g: analysis.fat_g,
-            }} grams={photoGrams} />
+
+            <div className="mt-3 glass rounded-3xl p-5">
+              <div className="flex items-baseline justify-between mb-3">
+                <span className="text-sm font-medium text-ink">Způsob přípravy</span>
+                <span className="text-[10px] text-ink-mute uppercase tracking-wider">upraví tuky a kcal</span>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(Object.keys(PREP_LABEL) as PrepMethod[]).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => {
+                      haptic('tap');
+                      setPrep(p);
+                      // Recompute fat/kcal from AI baseline whenever prep is tapped.
+                      // User's manual macro edits (protein/carbs) are preserved.
+                      const fatNew = +(analysis.fat_g * FAT_MULT[p]).toFixed(1);
+                      const kcalNew = Math.round(analysis.kcal - (analysis.fat_g - fatNew) * 9);
+                      setPhotoFat(Math.max(0, fatNew));
+                      setPhotoKcal(Math.max(0, kcalNew));
+                    }}
+                    className={`px-2 py-2 rounded-xl text-xs font-semibold transition-all ${
+                      prep === p
+                        ? 'bg-grad-coral text-white shadow-coral-soft'
+                        : 'bg-white/[0.04] text-ink-soft border border-white/5'
+                    }`}
+                  >
+                    {PREP_LABEL[p]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-3 glass rounded-3xl p-5 space-y-4">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-ink-mute">
+                Nutriční hodnoty <span className="text-ink-mute/60 font-normal normal-case">(na celou porci, můžeš upravit)</span>
+              </div>
+              <NumField label="Kalorie" unit="kcal" value={photoKcal} onChange={setPhotoKcal} accent="text-ink" />
+              <NumField label="Bílkoviny" unit="g" value={photoProt} onChange={setPhotoProt} accent="text-macro-protein" />
+              <NumField label="Sacharidy" unit="g" value={photoCarbs} onChange={setPhotoCarbs} accent="text-macro-carbs" />
+              <NumField label="Tuky" unit="g" value={photoFat} onChange={setPhotoFat} accent="text-macro-fat" />
+            </div>
+
+            {photoGrams !== analysis.grams && (
+              <div className="mt-3 glass rounded-2xl p-3 flex items-center justify-between text-xs">
+                <span className="text-ink-mute">Po přepočtu na {photoGrams} g:</span>
+                <span className="font-bold text-ink tabular-nums">
+                  {Math.round(photoKcal * (photoGrams / analysis.grams))} kcal
+                </span>
+              </div>
+            )}
           </div>
         )}
 
