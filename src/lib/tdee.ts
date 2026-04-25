@@ -52,19 +52,20 @@ export function computeTargets(
   return { kcal, protein_g, carbs_g, fat_g };
 }
 
-// Dynamic TDEE: BMR × sedentary baseline (1.2) + actually logged activity kcal
-// + goal adjust. Macros stay calculated from the static target so they don't
-// jump every time you log a run.
+// Dynamic TDEE: BMR × user's activity factor as baseline + extra kcal from
+// activities logged today + goal adjust. Logged activities add on top of the
+// baseline NEAT — they're not the only source of movement.
 export function dynamicDailyTargets(
   sex: Sex,
   weightKg: number,
   heightCm: number,
   age: number,
+  activity: ActivityLevel,
   goal: Goal,
   burnedToday: number,
 ): Targets {
   const bmr = mifflinStJeor(sex, weightKg, heightCm, age);
-  const base = bmr * ACTIVITY_FACTORS.sedentary;
+  const base = bmr * ACTIVITY_FACTORS[activity];
   const kcal = Math.max(1200, Math.round(base + Math.max(0, burnedToday) + GOAL_KCAL_ADJUST[goal]));
   const protein_g = Math.round(weightKg * (goal === 'lose' ? 2.0 : 1.8));
   const fat_g = Math.round((kcal * 0.27) / 9);

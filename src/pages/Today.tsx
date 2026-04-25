@@ -55,12 +55,8 @@ export default function Today() {
 
   const profile = data.profile;
   const baseTargets = profile?.targets ?? { kcal: 2000, protein_g: 150, carbs_g: 220, fat_g: 65 };
-  // Two models for the day's calorie target:
-  //  1. Dynamic (default if profile opted in): BMR × sedentary + actual burned.
-  //     Avoids double-counting a static activity multiplier.
-  //  2. Static + eat-back: profile target plus burned added on top.
   const targets = profile?.useDynamicTdee
-    ? dynamicDailyTargets(profile.sex, profile.weightKg, profile.heightCm, profile.age, profile.goal, burned)
+    ? dynamicDailyTargets(profile.sex, profile.weightKg, profile.heightCm, profile.age, profile.activity, profile.goal, burned)
     : { ...baseTargets, kcal: baseTargets.kcal + burned };
 
   const waterMl = data.water?.[date] ?? 0;

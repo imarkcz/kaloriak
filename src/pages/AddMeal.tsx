@@ -423,56 +423,90 @@ export default function AddMeal() {
 
         {/* PHOTO MODE */}
         {!picked && mode === 'photo' && photoStage === 'pick' && (
-          <div className="flex flex-col items-center justify-center pt-8 animate-fade-up">
-            <div className="relative">
-              <div className="absolute inset-0 bg-grad-coral blur-3xl opacity-40 rounded-full" />
-              <div className="relative w-32 h-32 rounded-full bg-grad-coral flex items-center justify-center shadow-coral-glow">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
-                </svg>
-              </div>
-            </div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-center mt-6 text-ink">Vyfoť své jídlo</h2>
-            <p className="text-ink-soft text-center mt-2 max-w-xs text-sm">
-              AI rozpozná jídlo a odhadne kalorie i makra během pár sekund.
-            </p>
+          <div className="animate-fade-up">
+            <input ref={fileInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+            <input ref={galleryInput} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
 
-            <div className="mt-8 w-full space-y-2.5">
-              <input ref={fileInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
-              <input ref={galleryInput} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
-              <button
-                onClick={() => fileInput.current?.click()}
-                className="w-full py-4 rounded-2xl bg-grad-coral text-white font-semibold shadow-coral-glow active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
-                </svg>
-                Vyfotit teď
-              </button>
-              <button
-                onClick={() => galleryInput.current?.click()}
-                className="w-full py-4 rounded-2xl glass text-ink font-semibold active:scale-[0.98] transition-transform"
-              >
-                Vybrat z galerie
-              </button>
-            </div>
+            {/* Hero viewfinder frame */}
+            <button
+              type="button"
+              onClick={() => { haptic('tap'); fileInput.current?.click(); }}
+              className="relative w-full aspect-[4/5] rounded-[36px] overflow-hidden active:scale-[0.99] transition-transform group"
+              aria-label="Vyfotit jídlo"
+            >
+              {/* Layered gradient mesh background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-coral-500/30 via-orange-500/15 to-rose-600/25" />
+              <div className="absolute -top-20 -left-10 w-72 h-72 rounded-full bg-coral-400/40 blur-3xl" />
+              <div className="absolute -bottom-24 -right-10 w-80 h-80 rounded-full bg-orange-500/30 blur-3xl" />
+              <div className="absolute inset-0 bg-black/30 backdrop-blur-2xl" />
+              <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-[36px]" />
+
+              {/* Corner brackets — viewfinder feel */}
+              <CornerBracket className="top-5 left-5" />
+              <CornerBracket className="top-5 right-5 rotate-90" />
+              <CornerBracket className="bottom-5 right-5 rotate-180" />
+              <CornerBracket className="bottom-5 left-5 -rotate-90" />
+
+              {/* Centered content */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-grad-coral blur-2xl opacity-60 rounded-full scale-110" />
+                  <div className="relative w-20 h-20 rounded-full bg-grad-coral flex items-center justify-center shadow-coral-glow group-active:scale-95 transition-transform">
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                      <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                  </div>
+                </div>
+                <h2 className="text-2xl font-extrabold tracking-tight text-white mt-5 drop-shadow">Vyfoť své jídlo</h2>
+                <p className="text-white/75 mt-2 max-w-[18rem] text-[13px] leading-snug">
+                  AI rozpozná jídlo a odhadne kalorie i makra během pár sekund.
+                </p>
+              </div>
+
+              {/* Bottom shimmer line */}
+              <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            </button>
+
+            {/* Secondary action — gallery */}
+            <button
+              onClick={() => { haptic('tap'); galleryInput.current?.click(); }}
+              className="mt-3 w-full py-4 rounded-2xl glass text-ink font-semibold active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="3"/>
+                <circle cx="9" cy="9" r="2"/>
+                <path d="m21 15-5-5L5 21"/>
+              </svg>
+              Vybrat z galerie
+            </button>
           </div>
         )}
 
         {!picked && mode === 'photo' && photoStage === 'analyzing' && (
-          <div className="flex flex-col items-center justify-center pt-12 animate-fade-up">
-            {imageDataUrl && (
-              <div className="relative w-56 h-56 rounded-[32px] overflow-hidden mb-6 ring-1 ring-white/10">
-                <img src={imageDataUrl} alt="" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                  <div className="w-14 h-14 rounded-full border-[3px] border-white/20 border-t-coral-400 animate-spin" />
+          <div className="animate-fade-up">
+            <div className="relative w-full aspect-[4/5] rounded-[36px] overflow-hidden ring-1 ring-white/10">
+              {imageDataUrl ? (
+                <img src={imageDataUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 bg-grad-coral opacity-30" />
+              )}
+              {/* Frosted glass overlay */}
+              <div className="absolute inset-0 bg-black/30 backdrop-blur-xl" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/40" />
+
+              {/* Center spinner + text */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-grad-coral blur-2xl opacity-50 rounded-full scale-125" />
+                  <div className="relative w-20 h-20 rounded-full glass flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full border-[3px] border-white/20 border-t-coral-400 animate-spin" />
+                  </div>
                 </div>
+                <h2 className="text-xl font-bold text-white mt-6 drop-shadow">Analyzuji jídlo…</h2>
+                <p className="text-white/80 mt-1.5 text-sm">Moment, AI počítá kalorie.</p>
               </div>
-            )}
-            <h2 className="text-xl font-bold text-ink">Analyzuji jídlo…</h2>
-            <p className="text-ink-soft mt-2 text-sm">Moment, AI počítá kalorie.</p>
+            </div>
           </div>
         )}
 
@@ -882,6 +916,23 @@ function NumField({ label, unit, value, onChange, accent }: { label: string; uni
         <span className="text-xs text-ink-mute w-7">{unit}</span>
       </div>
     </label>
+  );
+}
+
+function CornerBracket({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      className={`absolute w-7 h-7 text-white/50 ${className}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 9V5a2 2 0 0 1 2-2h4" />
+    </svg>
   );
 }
 

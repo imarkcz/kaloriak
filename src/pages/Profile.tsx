@@ -104,7 +104,7 @@ export default function Profile() {
   }
 
   const targets = useDynamicTdee
-    ? dynamicDailyTargets(sex, weightKg, heightCm, age, goal, 0)
+    ? dynamicDailyTargets(sex, weightKg, heightCm, age, activity, goal, 0)
     : computeTargets(sex, weightKg, heightCm, age, activity, goal);
 
   return (
