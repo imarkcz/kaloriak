@@ -208,9 +208,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const cloud = await loadFromFirestore(userRef.current.uid);
       if (!cloud) return false;
       const local = loadLocal();
+      // If cloud has no meaningful data, don't wipe local state
+      if (!cloud.onboarded && !cloud.profile && cloud.meals.length === 0) return false;
       skipNextSync.current = true;
       setData({
         ...cloud,
+        // Never lose onboarded status — cloud might lack it due to partial save
+        onboarded: cloud.onboarded || local.onboarded,
         geminiApiKey: local.geminiApiKey || cloud.geminiApiKey,
         profile: cloud.profile
           ? { ...cloud.profile, avatarDataUrl: local.profile?.avatarDataUrl }
