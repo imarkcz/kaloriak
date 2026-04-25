@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { haptic } from '../lib/haptics';
 
 export default function BottomNav() {
   const navigate = useNavigate();
@@ -12,7 +13,7 @@ export default function BottomNav() {
     <div className="fixed bottom-0 inset-x-0 z-40 pb-safe pointer-events-none">
       <div className="max-w-md mx-auto px-5 pb-3 pt-2 flex justify-center">
         <nav className="pointer-events-auto glass rounded-full px-2 py-2 flex items-center gap-1 shadow-2xl shadow-black/60">
-          <NavLink to="/" end className={linkClass}>
+          <NavLink to="/" end className={linkClass} onClick={() => haptic('tap')}>
             {({ isActive }) => (
               <>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill={isActive ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -25,7 +26,7 @@ export default function BottomNav() {
           </NavLink>
 
           <button
-            onClick={() => navigate('/add')}
+            onClick={() => { haptic('tap'); navigate('/add'); }}
             className="w-14 h-14 rounded-full bg-grad-coral text-white shadow-coral-glow active:scale-95 transition-transform flex items-center justify-center mx-1"
             aria-label="Přidat jídlo"
           >
@@ -34,7 +35,7 @@ export default function BottomNav() {
             </svg>
           </button>
 
-          <NavLink to="/profile" className={linkClass}>
+          <NavLink to="/profile" className={linkClass} onClick={() => haptic('tap')}>
             {({ isActive }) => (
               <>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill={isActive ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

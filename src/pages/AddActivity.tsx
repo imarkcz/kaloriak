@@ -4,6 +4,7 @@ import { useApp } from '../state/AppState';
 import { todayISO } from '../lib/date';
 import { ACTIVITY_LABEL, estimateKcal } from '../lib/activityKcal';
 import type { ActivityKind } from '../types';
+import { haptic } from '../lib/haptics';
 
 const ORDER: ActivityKind[] = ['run', 'walk', 'bike', 'swim', 'gym', 'other'];
 
@@ -33,6 +34,7 @@ export default function AddActivity() {
       minutes,
       kcal,
     });
+    haptic('success');
     navigate('/', { replace: true });
   }
 

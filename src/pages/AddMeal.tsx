@@ -10,6 +10,7 @@ import { categorize } from '../lib/foodCategory';
 import { recentFoodsFromMeals, searchRecent } from '../lib/recentFoods';
 import BarcodeScanner from '../components/BarcodeScanner';
 import FoodThumb from '../components/FoodThumb';
+import { haptic } from '../lib/haptics';
 
 type Mode = 'photo' | 'search' | 'manual';
 type PhotoStage = 'pick' | 'analyzing' | 'confirm' | 'error';
@@ -140,6 +141,7 @@ export default function AddMeal() {
       imageDataUrl,
       note: analysis.note,
     });
+    haptic('success');
     navigate('/', { replace: true });
   }
 
@@ -156,6 +158,7 @@ export default function AddMeal() {
       carbs_g: +mCarbs.toFixed(1),
       fat_g: +mFat.toFixed(1),
     });
+    haptic('success');
     navigate('/', { replace: true });
   }
 
@@ -179,6 +182,7 @@ export default function AddMeal() {
       fat_g: +(picked.fat_g * ratio).toFixed(1),
       imageDataUrl: picked.imageUrl,
     });
+    haptic('success');
     navigate('/', { replace: true });
   }
 

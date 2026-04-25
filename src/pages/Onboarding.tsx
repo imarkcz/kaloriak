@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { haptic } from '../lib/haptics';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../state/AppState';
 import type { ActivityLevel, Goal, Sex } from '../types';
@@ -30,6 +31,7 @@ export default function Onboarding() {
       goal,
       targets,
     });
+    haptic('success');
     navigate('/', { replace: true });
   }
 
@@ -201,6 +203,7 @@ function BigSlider({ label, value, unit, min, max, step, onChange, decimals = 0 
   label: string; value: number; unit: string; min: number; max: number; step: number;
   onChange: (v: number) => void; decimals?: number;
 }) {
+  const lastTick = useRef(value);
   return (
     <div>
       <div className="flex items-baseline justify-between mb-3">
@@ -216,7 +219,14 @@ function BigSlider({ label, value, unit, min, max, step, onChange, decimals = 0 
         max={max}
         step={step}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          onChange(v);
+          if (Math.floor(v) !== Math.floor(lastTick.current)) {
+            haptic('tick');
+            lastTick.current = v;
+          }
+        }}
         className="w-full"
       />
     </div>
@@ -227,7 +237,7 @@ function Choice({ active, onClick, children, full }: { active: boolean; onClick:
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => { haptic('tap'); onClick(); }}
       className={`${full ? 'w-full text-left' : 'text-center'} px-4 py-3.5 rounded-2xl font-semibold text-sm transition-all ${
         active
           ? 'bg-grad-coral text-white shadow-coral-soft'

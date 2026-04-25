@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { haptic } from '../lib/haptics';
 import { useApp } from '../state/AppState';
 import type { ActivityLevel, Goal, Sex } from '../types';
 import { ACTIVITY_LABELS, GOAL_LABELS, computeTargets, dynamicDailyTargets } from '../lib/tdee';
@@ -90,6 +91,7 @@ export default function Profile() {
       useDynamicTdee,
     });
     setApiKey(apiKey.trim());
+    haptic('success');
     setSaved(true);
     setTimeout(() => setSaved(false), 1600);
   }
@@ -307,6 +309,7 @@ function Slider({
   label: string; value: number; unit: string; min: number; max: number; step: number;
   onChange: (v: number) => void; decimals?: number;
 }) {
+  const lastTick = useRef(value);
   return (
     <label className="block">
       <div className="flex justify-between items-baseline mb-1">
@@ -319,7 +322,14 @@ function Slider({
         max={max}
         step={step}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          onChange(v);
+          if (Math.floor(v) !== Math.floor(lastTick.current)) {
+            haptic('tick');
+            lastTick.current = v;
+          }
+        }}
         className="w-full"
       />
     </label>
@@ -330,7 +340,7 @@ function Choice({ active, onClick, children, full }: { active: boolean; onClick:
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => { haptic('tap'); onClick(); }}
       className={`${full ? 'w-full text-left px-4' : 'px-3'} py-2.5 rounded-xl font-semibold text-sm transition-all ${
         active
           ? 'bg-grad-coral text-white shadow-coral-soft'
