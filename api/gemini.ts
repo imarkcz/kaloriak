@@ -121,6 +121,41 @@ async function openaiCall(type: 'name' | 'image', input: { name?: string; imageB
   return JSON.parse(res.choices[0]?.message?.content ?? '{}');
 }
 
+// === GROQ ===
+async function groqCall(type: 'name' | 'image', input: { name?: string; imageBase64?: string; mimeType?: string }): Promise<ProviderResult> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
+  const client = new OpenAI({ apiKey, baseURL: 'https://api.groq.com/openai/v1' });
+
+  if (type === 'name') {
+    const res = await client.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: `${NAME_PROMPT}\nVrať JSON podle tvaru: ${NAME_JSON_SHAPE}` },
+        { role: 'user', content: `Název jídla: "${input.name}"` },
+      ],
+    });
+    return JSON.parse(res.choices[0]?.message?.content ?? '{}');
+  }
+
+  const res = await client.chat.completions.create({
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: `${IMAGE_PROMPT}\nVrať JSON podle tvaru: ${IMAGE_JSON_SHAPE}` },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Analyzuj toto jídlo:' },
+          { type: 'image_url', image_url: { url: `data:${input.mimeType};base64,${input.imageBase64}` } },
+        ],
+      },
+    ],
+  });
+  return JSON.parse(res.choices[0]?.message?.content ?? '{}');
+}
+
 // === ANTHROPIC ===
 async function claudeCall(type: 'name' | 'image', input: { name?: string; imageBase64?: string; mimeType?: string }): Promise<ProviderResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -157,6 +192,7 @@ async function claudeCall(type: 'name' | 'image', input: { name?: string; imageB
 // Fallback chain — try each provider in order, skip on quota errors
 const PROVIDERS = [
   { name: 'gemini', call: geminiCall },
+  { name: 'groq',   call: groqCall   },
   { name: 'openai', call: openaiCall },
   { name: 'claude', call: claudeCall },
 ];
