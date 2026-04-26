@@ -59,18 +59,13 @@ export default function ProgressRing({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  // Orbital particles & embers — pure decorative, no measurement
-  const particles = [
-    { r: r + stroke / 2 + 4, color: grad.from, size: 4, anim: 'animate-orbit-1' },
-    { r: r + stroke / 2 + 4, color: grad.via,  size: 3, anim: 'animate-orbit-2' },
-    { r: r - stroke,         color: grad.to,   size: 2.5, anim: 'animate-orbit-3' },
-    { r: rTicks + 8,         color: grad.via,  size: 2,  anim: 'animate-orbit-2' },
-  ];
-  const embers = Array.from({ length: 6 }, (_, i) => ({
-    delay: `${i * 0.45}s`,
-    left: `${30 + i * 8}%`,
-    drift: `${(i % 2 === 0 ? 1 : -1) * (8 + i * 2)}px`,
-    color: i % 2 === 0 ? grad.from : grad.via,
+  // Embers drifting up from below the ring — the "flame" effect.
+  const embers = Array.from({ length: 10 }, (_, i) => ({
+    delay: `${i * 0.32}s`,
+    left: `${15 + (i * 7) % 70}%`,
+    drift: `${(i % 2 === 0 ? 1 : -1) * (6 + (i * 3) % 14)}px`,
+    color: i % 3 === 0 ? grad.from : i % 3 === 1 ? grad.via : grad.to,
+    size: 1 + (i % 3) * 0.7,
   }));
 
   return (
@@ -149,21 +144,6 @@ export default function ProgressRing({
             filter="url(#ringGlow)"
             style={{ transition: 'stroke-dashoffset 1100ms cubic-bezier(.2,.8,.2,1)' }}
           />
-          {/* Rotating shimmer dot riding the arc */}
-          {pct > 0 && (
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={r}
-              stroke="url(#ringShimmer)"
-              strokeWidth={stroke}
-              fill="none"
-              strokeLinecap="round"
-              strokeDasharray={`${c * 0.04} ${c * 0.96}`}
-              className="animate-ring-shimmer"
-              style={{ transformOrigin: '50% 50%' }}
-            />
-          )}
         </g>
 
         {/* inner halo ring */}
@@ -177,33 +157,29 @@ export default function ProgressRing({
         />
       </svg>
 
-      {/* Orbital particles riding around the ring */}
-      <div className="absolute inset-0 pointer-events-none" style={{ perspective: '600px' }}>
-        {particles.map((p, i) => (
-          <span
-            key={i}
-            className={`absolute top-1/2 left-1/2 rounded-full ${p.anim}`}
-            style={{
-              width: p.size, height: p.size,
-              marginLeft: -p.size / 2, marginTop: -p.size / 2,
-              background: p.color,
-              boxShadow: `0 0 8px ${p.color}, 0 0 16px ${p.color}90`,
-              ['--orbit-r' as string]: `${p.r}px`,
-            } as React.CSSProperties}
-          />
-        ))}
-      </div>
+      {/* Flame core glow at the bottom of the ring */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 pointer-events-none animate-ring-pulse"
+        style={{
+          bottom: -size * 0.05,
+          width: size * 0.7,
+          height: size * 0.45,
+          background: `radial-gradient(ellipse at center bottom, ${grad.from}aa 0%, ${grad.via}55 35%, transparent 70%)`,
+          filter: 'blur(20px)',
+        }}
+      />
 
-      {/* Bottom embers drifting upward */}
-      <div className="absolute inset-x-0 bottom-2 h-24 pointer-events-none overflow-visible">
+      {/* Embers drifting upward — the flame */}
+      <div className="absolute inset-x-0 bottom-0 h-32 pointer-events-none overflow-visible">
         {embers.map((e, i) => (
           <span
             key={i}
-            className="absolute bottom-0 w-1 h-1 rounded-full animate-ember"
+            className="absolute bottom-0 rounded-full animate-ember"
             style={{
               left: e.left,
+              width: e.size, height: e.size,
               background: e.color,
-              boxShadow: `0 0 6px ${e.color}, 0 0 12px ${e.color}80`,
+              boxShadow: `0 0 6px ${e.color}, 0 0 14px ${e.color}90`,
               animationDelay: e.delay,
               ['--ember-x' as string]: e.drift,
             } as React.CSSProperties}

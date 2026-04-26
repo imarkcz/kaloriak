@@ -41,6 +41,7 @@ export default function Profile() {
   const [goal, setGoalLocal] = useState<Goal>(p?.goal ?? 'maintain');
   const [intensity, setIntensityLocal] = useState<Intensity>(p?.goalIntensity ?? 'moderate');
   const [useDynamicTdee, setUseDynamicTdeeLocal] = useState<boolean>(p?.useDynamicTdee ?? true);
+  const [customSplit, setCustomSplitLocal] = useState<{ proteinPct: number; carbsPct: number; fatPct: number } | undefined>(p?.customMacroSplit);
 
   // Goal/activity/toggle auto-save — they directly affect daily targets,
   // so requiring an extra "Save" click was confusing (users changed goal
@@ -66,8 +67,15 @@ export default function Profile() {
   function setIntensity(i: Intensity) {
     setIntensityLocal(i);
     if (p) {
-      const newTargets = computeTargets(sex, weightKg, heightCm, age, activity, goal, i);
+      const newTargets = computeTargets(sex, weightKg, heightCm, age, activity, goal, i, customSplit);
       setProfile({ ...p, sex, weightKg, heightCm, age, goal, goalIntensity: i, targets: newTargets });
+    }
+  }
+  function setCustomSplit(s: { proteinPct: number; carbsPct: number; fatPct: number } | undefined) {
+    setCustomSplitLocal(s);
+    if (p) {
+      const newTargets = computeTargets(sex, weightKg, heightCm, age, activity, goal, intensity, s);
+      setProfile({ ...p, sex, weightKg, heightCm, age, goal, goalIntensity: intensity, targets: newTargets, customMacroSplit: s });
     }
   }
 
@@ -88,7 +96,7 @@ export default function Profile() {
   }
 
   function handleSave() {
-    const targets = computeTargets(sex, weightKg, heightCm, age, activity, goal, intensity);
+    const targets = computeTargets(sex, weightKg, heightCm, age, activity, goal, intensity, customSplit);
     setProfile({
       name: name.trim() || 'Já',
       sex, age, heightCm, weightKg,
@@ -96,6 +104,7 @@ export default function Profile() {
       activity, goal, goalIntensity: intensity, targets,
       avatarDataUrl,
       useDynamicTdee,
+      customMacroSplit: customSplit,
     });
     setApiKey(apiKey.trim());
     haptic('success');
@@ -111,8 +120,8 @@ export default function Profile() {
   }
 
   const targets = useDynamicTdee
-    ? dynamicDailyTargets(sex, weightKg, heightCm, age, activity, goal, 0, intensity)
-    : computeTargets(sex, weightKg, heightCm, age, activity, goal, intensity);
+    ? dynamicDailyTargets(sex, weightKg, heightCm, age, activity, goal, 0, intensity, customSplit)
+    : computeTargets(sex, weightKg, heightCm, age, activity, goal, intensity, customSplit);
 
   return (
     <div className="min-h-dvh pt-safe pb-32">
@@ -240,6 +249,12 @@ export default function Profile() {
             intensity={intensity}
           />
         </Card>
+
+        <MacroSplitCard
+          totalKcal={targets.kcal}
+          split={customSplit}
+          onChange={setCustomSplit}
+        />
 
 
         <button
@@ -384,6 +399,122 @@ function Tile({ icon, label, value, unit, highlight = false }: { icon: string; l
           {value}
         </div>
         <div className={`text-[10px] mt-0.5 ${highlight ? 'text-white/80' : 'text-ink-mute'}`}>{unit}</div>
+      </div>
+    </div>
+  );
+}
+
+function MacroSplitCard({
+  totalKcal, split, onChange,
+}: {
+  totalKcal: number;
+  split: { proteinPct: number; carbsPct: number; fatPct: number } | undefined;
+  onChange: (s: { proteinPct: number; carbsPct: number; fatPct: number } | undefined) => void;
+}) {
+  const enabled = !!split;
+  const current = split ?? { proteinPct: 30, carbsPct: 40, fatPct: 30 };
+
+  // Adjust one macro: rebalance the other two proportionally so the total
+  // stays at 100. If the others were both 0, split equally.
+  function setPct(key: 'proteinPct' | 'carbsPct' | 'fatPct', newVal: number) {
+    const v = Math.max(5, Math.min(80, Math.round(newVal)));
+    const otherKeys = (['proteinPct', 'carbsPct', 'fatPct'] as const).filter((k) => k !== key);
+    const remaining = 100 - v;
+    const oldSum = current[otherKeys[0]] + current[otherKeys[1]];
+    let a: number, b: number;
+    if (oldSum <= 0) { a = b = Math.round(remaining / 2); }
+    else {
+      a = Math.round(remaining * (current[otherKeys[0]] / oldSum));
+      b = remaining - a;
+    }
+    onChange({ ...current, [key]: v, [otherKeys[0]]: a, [otherKeys[1]]: b } as typeof current);
+  }
+
+  const protein_g = Math.round((totalKcal * current.proteinPct / 100) / 4);
+  const carbs_g = Math.round((totalKcal * current.carbsPct / 100) / 4);
+  const fat_g = Math.round((totalKcal * current.fatPct / 100) / 9);
+
+  const presets = [
+    { name: 'Vyvážený', p: 30, c: 40, f: 30 },
+    { name: 'Hubnoucí', p: 40, c: 30, f: 30 },
+    { name: 'Low-carb',  p: 35, c: 20, f: 45 },
+    { name: 'Keto',      p: 25, c: 5,  f: 70 },
+  ];
+
+  return (
+    <section className="glass rounded-3xl p-5 animate-fade-up">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-ink-mute">Rozložení makroživin</h2>
+        <button
+          type="button"
+          onClick={() => { haptic('tap'); onChange(enabled ? undefined : current); }}
+          className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-all ${
+            enabled ? 'bg-grad-coral text-white shadow-coral-soft' : 'bg-white/[0.06] text-ink-soft ring-1 ring-white/10'
+          }`}
+        >
+          {enabled ? 'Vlastní' : 'Automatické'}
+        </button>
+      </div>
+
+      {!enabled && (
+        <p className="text-xs text-ink-soft leading-snug">
+          Makra se počítají automaticky podle tvé váhy a cíle. Klepni nahoře pro vlastní nastavení.
+        </p>
+      )}
+
+      {enabled && (
+        <div className="space-y-4">
+          <MacroSlider label="Bílkoviny" pct={current.proteinPct} grams={protein_g} accent="bg-grad-protein" textColor="text-macro-protein" onChange={(v) => setPct('proteinPct', v)} />
+          <MacroSlider label="Sacharidy" pct={current.carbsPct}   grams={carbs_g}   accent="bg-grad-carbs"   textColor="text-macro-carbs"   onChange={(v) => setPct('carbsPct', v)} />
+          <MacroSlider label="Tuky"      pct={current.fatPct}     grams={fat_g}     accent="bg-grad-fat"     textColor="text-macro-fat"     onChange={(v) => setPct('fatPct', v)} />
+
+          <div className="flex items-center justify-between pt-1 border-t border-white/5">
+            <span className="text-[11px] text-ink-mute">Součet</span>
+            <span className={`text-xs font-bold tabular-nums ${current.proteinPct + current.carbsPct + current.fatPct === 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {current.proteinPct + current.carbsPct + current.fatPct} %
+            </span>
+          </div>
+
+          <div className="flex gap-1.5 flex-wrap pt-1">
+            {presets.map((p) => (
+              <button
+                key={p.name}
+                type="button"
+                onClick={() => { haptic('tap'); onChange({ proteinPct: p.p, carbsPct: p.c, fatPct: p.f }); }}
+                className="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-white/5 text-ink-soft border border-white/5 active:scale-95 transition-transform"
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MacroSlider({ label, pct, grams, accent, textColor, onChange }: {
+  label: string; pct: number; grams: number; accent: string; textColor: string; onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-2">
+        <span className={`text-sm font-semibold ${textColor}`}>{label}</span>
+        <div className="flex items-baseline gap-2">
+          <span className="text-base font-bold tabular-nums text-ink">{pct}%</span>
+          <span className="text-[11px] text-ink-mute tabular-nums">{grams} g</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={() => onChange(pct - 5)} className="w-9 h-9 rounded-full bg-white/[0.05] ring-1 ring-white/10 text-ink active:scale-90 transition-transform shrink-0 flex items-center justify-center" aria-label="Méně">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M5 12h14"/></svg>
+        </button>
+        <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+          <div className={`h-full ${accent} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+        </div>
+        <button type="button" onClick={() => onChange(pct + 5)} className="w-9 h-9 rounded-full bg-white/[0.05] ring-1 ring-white/10 text-ink active:scale-90 transition-transform shrink-0 flex items-center justify-center" aria-label="Více">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
       </div>
     </div>
   );

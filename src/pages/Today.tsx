@@ -10,7 +10,8 @@ import WaterTracker from '../components/WaterTracker';
 import { dynamicDailyTargets } from '../lib/tdee';
 import Avatar from '../components/Avatar';
 import EditMealSheet from '../components/EditMealSheet';
-import type { Meal } from '../types';
+import type { Meal, MealType } from '../types';
+import { MEAL_TYPE_META, MEAL_TYPE_ORDER, resolveMealType } from '../lib/mealType';
 
 export default function Today() {
   const { data, deleteMeal, updateMeal, deleteActivity, setWater } = useApp();
@@ -56,7 +57,7 @@ export default function Today() {
   const profile = data.profile;
   const baseTargets = profile?.targets ?? { kcal: 2000, protein_g: 150, carbs_g: 220, fat_g: 65 };
   const targets = profile?.useDynamicTdee
-    ? dynamicDailyTargets(profile.sex, profile.weightKg, profile.heightCm, profile.age, profile.activity, profile.goal, burned, profile.goalIntensity ?? 'moderate')
+    ? dynamicDailyTargets(profile.sex, profile.weightKg, profile.heightCm, profile.age, profile.activity, profile.goal, burned, profile.goalIntensity ?? 'moderate', profile.customMacroSplit)
     : { ...baseTargets, kcal: baseTargets.kcal + burned };
 
   const waterMl = data.water?.[date] ?? 0;
@@ -258,24 +259,37 @@ export default function Today() {
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
-              {meals.map((m) => (
-                <div key={m.id} className="relative group">
-                  <MealCard meal={m} onClick={() => setEditingMeal(m)} />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (window.confirm(`Smazat "${m.name}"?`)) deleteMeal(m.id);
-                    }}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-3/80 text-ink-mute hover:text-red-400 active:scale-90 flex items-center justify-center backdrop-blur"
-                    aria-label="Smazat jídlo"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                    </svg>
-                  </button>
-                </div>
-              ))}
+            <div className="space-y-5">
+              {MEAL_TYPE_ORDER.map((type) => {
+                const items = meals.filter((m) => resolveMealType(m) === type);
+                if (items.length === 0) return null;
+                const sectionKcal = items.reduce((s, m) => s + m.kcal, 0);
+                const meta = MEAL_TYPE_META[type];
+                return (
+                  <div key={type} className="space-y-2">
+                    <MealSectionHeader kcal={sectionKcal} count={items.length} meta={meta} />
+                    <div className="space-y-2">
+                      {items.map((m) => (
+                        <div key={m.id} className="relative group">
+                          <MealCard meal={m} onClick={() => setEditingMeal(m)} />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`Smazat "${m.name}"?`)) deleteMeal(m.id);
+                            }}
+                            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-3/80 text-ink-mute hover:text-red-400 active:scale-90 flex items-center justify-center backdrop-blur"
+                            aria-label="Smazat jídlo"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
@@ -359,3 +373,29 @@ function MacroPill({ label, value, target, gradient }: { label: string; value: n
     </div>
   );
 }
+
+function MealSectionHeader({ kcal, count, meta }: {
+  kcal: number;
+  count: number;
+  meta: typeof MEAL_TYPE_META[MealType];
+}) {
+  return (
+    <div className="relative rounded-2xl overflow-hidden">
+      <div className={`absolute inset-0 bg-gradient-to-br ${meta.tint}`} />
+      <div className="absolute inset-0 bg-black/35 backdrop-blur-xl" />
+      <div className="relative flex items-center gap-3 px-4 py-2.5">
+        <div className="text-xl leading-none">{meta.icon}</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-extrabold text-white leading-tight">{meta.label}</div>
+          <div className="text-[10px] text-white/70 tabular-nums">{count} {count === 1 ? 'položka' : count >= 2 && count <= 4 ? 'položky' : 'položek'}</div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-base font-extrabold tabular-nums text-white leading-none">{Math.round(kcal)}</div>
+          <div className="text-[10px] text-white/70">kcal</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+// Suppress unused-import warning for MealType when no other usage exists.
+export type { MealType };

@@ -13,6 +13,9 @@ import FoodThumb from '../components/FoodThumb';
 import { haptic } from '../lib/haptics';
 import { analyzeMeal, type MealInsight } from '../lib/mealInsights';
 import MealInsightModal from '../components/MealInsightModal';
+import NumStepper from '../components/NumStepper';
+import { MEAL_TYPE_META, MEAL_TYPE_ORDER, defaultMealTypeForNow } from '../lib/mealType';
+import type { MealType } from '../types';
 
 type Mode = 'photo' | 'search' | 'manual';
 type PhotoStage = 'pick' | 'analyzing' | 'confirm' | 'error';
@@ -61,6 +64,10 @@ export default function AddMeal() {
   // After save: show one-shot insight popup, then navigate home on dismiss.
   const [insight, setInsight] = useState<MealInsight | null>(null);
   const [insightFor, setInsightFor] = useState<{ name: string; kcal: number } | null>(null);
+
+  // Meal-time grouping (breakfast / lunch / snack / dinner). Default is
+  // inferred from the local clock so most logging is one tap less.
+  const [mealType, setMealType] = useState<MealType>(() => defaultMealTypeForNow());
 
   // search state
   const [query, setQuery] = useState('');
@@ -184,6 +191,7 @@ export default function AddMeal() {
       id: crypto.randomUUID(),
       date: todayISO(),
       createdAt: Date.now(),
+      mealType,
       ...m,
       imageDataUrl,
       note: analysis.note,
@@ -202,7 +210,7 @@ export default function AddMeal() {
       carbs_g: +mCarbs.toFixed(1),
       fat_g: +mFat.toFixed(1),
     };
-    addMeal({ id: crypto.randomUUID(), date: todayISO(), createdAt: Date.now(), ...m });
+    addMeal({ id: crypto.randomUUID(), date: todayISO(), createdAt: Date.now(), mealType, ...m });
     haptic('success');
     showInsightThenNav(m);
   }
@@ -223,7 +231,7 @@ export default function AddMeal() {
       carbs_g: +(picked.carbs_g * ratio).toFixed(1),
       fat_g: +(picked.fat_g * ratio).toFixed(1),
     };
-    addMeal({ id: crypto.randomUUID(), date: todayISO(), createdAt: Date.now(), ...m, imageDataUrl: picked.imageUrl });
+    addMeal({ id: crypto.randomUUID(), date: todayISO(), createdAt: Date.now(), mealType, ...m, imageDataUrl: picked.imageUrl });
     haptic('success');
     showInsightThenNav(m);
   }
@@ -323,11 +331,16 @@ export default function AddMeal() {
       <main className="flex-1 max-w-md mx-auto w-full px-5 pb-32 overflow-y-auto">
         {/* PICKED → CONFIGURE PORTION */}
         {picked && (
-          <PickedConfig
-            picked={picked}
-            grams={pickedGrams}
-            onGramsChange={setPickedGrams}
-          />
+          <>
+            <PickedConfig
+              picked={picked}
+              grams={pickedGrams}
+              onGramsChange={setPickedGrams}
+            />
+            <div className="mt-3">
+              <MealTypePicker value={mealType} onChange={setMealType} />
+            </div>
+          </>
         )}
 
         {/* SEARCH MODE */}
@@ -537,13 +550,20 @@ export default function AddMeal() {
             <p className="text-[11px] text-ink-mute mt-1.5">
               {analysis.note ? `${analysis.note} · ` : ''}Klepni na název nebo hodnoty pro úpravu.
             </p>
-            <div className="mt-4 glass rounded-3xl p-5">
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-ink">Hmotnost porce</span>
-                <span className="text-base font-bold tabular-nums text-ink">{photoGrams} g</span>
-              </div>
-              <input type="range" min={10} max={1200} step={5} value={photoGrams} onChange={(e) => setPhotoGrams(Number(e.target.value))} className="w-full mt-3" />
-              <div className="flex justify-between text-[10px] text-ink-mute mt-1 tabular-nums"><span>10 g</span><span>1200 g</span></div>
+            <MealTypePicker value={mealType} onChange={setMealType} />
+
+            <div className="mt-3 glass rounded-3xl p-5">
+              <div className="text-sm font-medium text-ink mb-3">Hmotnost porce</div>
+              <NumStepper
+                value={photoGrams}
+                onChange={setPhotoGrams}
+                min={5}
+                max={2000}
+                step={5}
+                bigStep={50}
+                unit="g"
+                presets={[100, 150, 200, 300, 500]}
+              />
             </div>
 
             <div className="mt-3 glass rounded-3xl p-5">
@@ -621,12 +641,10 @@ export default function AddMeal() {
                 <input className="field" placeholder="např. Kuřecí salát" value={mName} onChange={(e) => setMName(e.target.value)} />
               </Field>
               <Field label="Hmotnost porce">
-                <div className="flex items-center gap-3">
-                  <input type="range" min={10} max={1200} step={5} value={mGrams} onChange={(e) => setMGrams(Number(e.target.value))} className="flex-1" />
-                  <span className="text-sm font-bold tabular-nums w-16 text-right text-ink">{mGrams} g</span>
-                </div>
+                <NumStepper value={mGrams} onChange={setMGrams} min={5} max={2000} step={5} bigStep={50} unit="g" presets={[100, 150, 200, 300]} />
               </Field>
             </div>
+            <MealTypePicker value={mealType} onChange={setMealType} />
             <div className="glass rounded-3xl p-5 space-y-4">
               <div className="text-[11px] font-bold uppercase tracking-wider text-ink-mute">Nutriční hodnoty</div>
               <NumField label="Kalorie" unit="kcal" value={mKcal} onChange={setMKcal} accent="text-ink" />
@@ -845,30 +863,17 @@ function PickedConfig({ picked, grams, onGramsChange }: { picked: FoodSearchResu
           </>
         ) : (
           <>
-            <div className="flex justify-between items-baseline">
-              <span className="text-sm font-semibold text-ink">Hmotnost porce</span>
-              <span className="text-2xl font-extrabold tabular-nums text-ink">
-                {grams} <span className="text-sm text-ink-soft font-semibold">g</span>
-              </span>
-            </div>
-            <input type="range" min={5} max={1200} step={5} value={grams} onChange={(e) => onGramsChange(Number(e.target.value))} className="w-full mt-3" />
-            <div className="flex justify-between text-[10px] text-ink-mute mt-1 tabular-nums">
-              <span>5 g</span>
-              <span>1200 g</span>
-            </div>
-            <div className="flex gap-1.5 mt-3 flex-wrap">
-              {[50, 100, 150, 200, 300].map((g) => (
-                <button
-                  key={g}
-                  onClick={() => onGramsChange(g)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                    grams === g ? 'bg-grad-coral text-white' : 'bg-white/5 text-ink-soft border border-white/5'
-                  }`}
-                >
-                  {g} g
-                </button>
-              ))}
-            </div>
+            <div className="text-sm font-semibold text-ink mb-3">Hmotnost porce</div>
+            <NumStepper
+              value={grams}
+              onChange={onGramsChange}
+              min={5}
+              max={2000}
+              step={5}
+              bigStep={50}
+              unit="g"
+              presets={[50, 100, 150, 200, 300]}
+            />
           </>
         )}
       </div>
@@ -936,6 +941,34 @@ function NumField({ label, unit, value, onChange, accent }: { label: string; uni
         <span className="text-xs text-ink-mute w-7">{unit}</span>
       </div>
     </label>
+  );
+}
+
+function MealTypePicker({ value, onChange }: { value: MealType; onChange: (v: MealType) => void }) {
+  return (
+    <div className="glass rounded-3xl p-4">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-ink-mute mb-3">Kdy jíš?</div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {MEAL_TYPE_ORDER.map((t) => {
+          const m = MEAL_TYPE_META[t];
+          const active = value === t;
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => { haptic('tap'); onChange(t); }}
+              className={`relative rounded-2xl py-2.5 px-1 flex flex-col items-center gap-1 overflow-hidden transition-all ${
+                active ? 'ring-1 ring-white/15 shadow-coral-soft' : 'bg-white/[0.04] border border-white/5'
+              }`}
+            >
+              {active && <span className={`absolute inset-0 bg-gradient-to-br ${m.tint}`} />}
+              <span className="relative text-xl leading-none">{m.icon}</span>
+              <span className={`relative text-[10px] font-bold leading-none ${active ? 'text-white' : 'text-ink-soft'}`}>{m.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

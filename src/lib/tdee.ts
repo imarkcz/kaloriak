@@ -67,6 +67,21 @@ export function mifflinStJeor(sex: Sex, weightKg: number, heightCm: number, age:
   return sex === 'male' ? base + 5 : base - 161;
 }
 
+interface MacroSplit { proteinPct: number; carbsPct: number; fatPct: number }
+
+function macrosFromKcal(kcal: number, weightKg: number, goal: Goal, split?: MacroSplit): { protein_g: number; carbs_g: number; fat_g: number } {
+  if (split) {
+    const protein_g = Math.round((kcal * split.proteinPct / 100) / 4);
+    const fat_g = Math.round((kcal * split.fatPct / 100) / 9);
+    const carbs_g = Math.max(0, Math.round((kcal * split.carbsPct / 100) / 4));
+    return { protein_g, carbs_g, fat_g };
+  }
+  const protein_g = Math.round(weightKg * (goal === 'lose' ? 2.0 : 1.8));
+  const fat_g = Math.round((kcal * 0.27) / 9);
+  const carbs_g = Math.max(0, Math.round((kcal - protein_g * 4 - fat_g * 9) / 4));
+  return { protein_g, carbs_g, fat_g };
+}
+
 export function computeTargets(
   sex: Sex,
   weightKg: number,
@@ -75,16 +90,12 @@ export function computeTargets(
   activity: ActivityLevel,
   goal: Goal,
   intensity: Intensity = 'moderate',
+  split?: MacroSplit,
 ): Targets {
   const bmr = mifflinStJeor(sex, weightKg, heightCm, age);
   const tdee = bmr * ACTIVITY_FACTORS[activity];
   const kcal = Math.max(1200, Math.round(tdee + adjustFor(goal, intensity)));
-
-  const protein_g = Math.round(weightKg * (goal === 'lose' ? 2.0 : 1.8));
-  const fat_g = Math.round((kcal * 0.27) / 9);
-  const carbs_g = Math.max(0, Math.round((kcal - protein_g * 4 - fat_g * 9) / 4));
-
-  return { kcal, protein_g, carbs_g, fat_g };
+  return { kcal, ...macrosFromKcal(kcal, weightKg, goal, split) };
 }
 
 // Dynamic TDEE: BMR × user's activity factor as baseline + extra kcal from
@@ -99,12 +110,10 @@ export function dynamicDailyTargets(
   goal: Goal,
   burnedToday: number,
   intensity: Intensity = 'moderate',
+  split?: MacroSplit,
 ): Targets {
   const bmr = mifflinStJeor(sex, weightKg, heightCm, age);
   const base = bmr * ACTIVITY_FACTORS[activity];
   const kcal = Math.max(1200, Math.round(base + Math.max(0, burnedToday) + adjustFor(goal, intensity)));
-  const protein_g = Math.round(weightKg * (goal === 'lose' ? 2.0 : 1.8));
-  const fat_g = Math.round((kcal * 0.27) / 9);
-  const carbs_g = Math.max(0, Math.round((kcal - protein_g * 4 - fat_g * 9) / 4));
-  return { kcal, protein_g, carbs_g, fat_g };
+  return { kcal, ...macrosFromKcal(kcal, weightKg, goal, split) };
 }
