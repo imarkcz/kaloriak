@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/((?!api/|assets/|sw\\.js|workbox-.*|registerSW\\.js|manifest\\.webmanifest|icon.*\\.(png|svg)|apple-touch-icon\\.png|favicon\\.svg|.*\\.(js|css|map|png|jpg|jpeg|svg|webp|woff2)).*)", "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
