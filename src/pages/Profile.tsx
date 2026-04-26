@@ -336,13 +336,55 @@ function CalcBreakdown({
   const factor = ACTIVITY_FACTORS[activity];
   const tdee = Math.round(bmr * factor);
   const adjust = INTENSITY_KCAL[goal][intensity];
-  const sign = adjust >= 0 ? '+' : '−';
+  const isLose = adjust < 0;
+  const isGain = adjust > 0;
+  const total = Math.max(1200, tdee + adjust);
+
+  const goalLabel = goal === 'maintain'
+    ? 'Udržuješ váhu'
+    : `${goal === 'lose' ? 'Hubneš' : 'Nabíráš'} v tempu „${INTENSITY_LABEL[intensity].toLowerCase()}"`;
+  const adjustText = adjust === 0
+    ? 'beze změny'
+    : `${isLose ? '−' : '+'}${Math.abs(adjust)} kcal ${isLose ? 'denně' : 'denně'}`;
+
   return (
-    <div className="mt-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/5 p-3 text-[11px] text-ink-mute leading-relaxed font-mono">
-      <div className="flex justify-between"><span>BMR (Mifflin-St Jeor)</span><span className="tabular-nums text-ink">{bmr} kcal</span></div>
-      <div className="flex justify-between"><span>× aktivita ({factor.toFixed(3)})</span><span className="tabular-nums text-ink">{tdee} kcal</span></div>
-      <div className="flex justify-between"><span>{sign} cíl ({goal === 'maintain' ? 'udržet' : INTENSITY_LABEL[intensity].toLowerCase()})</span><span className="tabular-nums text-ink">{sign}{Math.abs(adjust)} kcal</span></div>
-      <div className="flex justify-between border-t border-white/5 mt-1.5 pt-1.5"><span className="text-ink font-bold">= cíl</span><span className="tabular-nums text-ink font-bold">{Math.max(1200, tdee + adjust)} kcal</span></div>
+    <div className="mt-4 space-y-2">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-ink-mute px-1">Jak jsme to spočítali</p>
+
+      <div className="grid grid-cols-3 gap-2">
+        <Tile icon="🔥" label="Klidový metabolismus" value={bmr} unit="kcal" />
+        <Tile icon="🏃" label="Po aktivitě" value={tdee} unit="kcal" />
+        <Tile icon={isLose ? '📉' : isGain ? '📈' : '⚖️'} label="Tvůj cíl" value={total} unit="kcal" highlight />
+      </div>
+
+      <div className="rounded-2xl glass p-3.5 flex items-center gap-3">
+        <div className="text-2xl leading-none">{isLose ? '📉' : isGain ? '📈' : '⚖️'}</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-semibold text-ink leading-tight">{goalLabel}</div>
+          <div className="text-[11px] text-ink-mute mt-0.5">{adjustText}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Tile({ icon, label, value, unit, highlight = false }: { icon: string; label: string; value: number; unit: string; highlight?: boolean }) {
+  return (
+    <div className={`relative rounded-2xl p-3 overflow-hidden ${highlight ? '' : 'bg-white/[0.04] ring-1 ring-white/5'}`}>
+      {highlight && (
+        <>
+          <div className="absolute inset-0 bg-grad-coral opacity-95" />
+          <div className="absolute inset-0 bg-black/15" />
+        </>
+      )}
+      <div className="relative">
+        <div className="text-base leading-none mb-1.5">{icon}</div>
+        <div className={`text-[10px] uppercase tracking-wider font-bold leading-tight ${highlight ? 'text-white/90' : 'text-ink-mute'}`}>{label}</div>
+        <div className={`text-xl font-extrabold tabular-nums mt-1 leading-none ${highlight ? 'text-white' : 'text-ink'}`}>
+          {value}
+        </div>
+        <div className={`text-[10px] mt-0.5 ${highlight ? 'text-white/80' : 'text-ink-mute'}`}>{unit}</div>
+      </div>
     </div>
   );
 }
