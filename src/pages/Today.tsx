@@ -4,6 +4,7 @@ import { todayISO, formatDateLabel } from '../lib/date';
 import ProgressRing from '../components/ProgressRing';
 import MacroPie, { MacroLegend } from '../components/MacroPie';
 import MealCard from '../components/MealCard';
+import FoodThumb from '../components/FoodThumb';
 import { Link } from 'react-router-dom';
 import { ACTIVITY_LABEL } from '../lib/activityKcal';
 import WaterTracker from '../components/WaterTracker';
@@ -12,6 +13,7 @@ import Avatar from '../components/Avatar';
 import EditMealSheet from '../components/EditMealSheet';
 import type { Meal, MealType } from '../types';
 import { MEAL_TYPE_META, MEAL_TYPE_ORDER, resolveMealType } from '../lib/mealType';
+import { categorize } from '../lib/foodCategory';
 import { getDailyFeedback, type FeedbackContext } from '../lib/gemini';
 import {
   DndContext, DragOverlay, PointerSensor, TouchSensor,
@@ -298,7 +300,7 @@ export default function Today() {
             </div>
           ) : (
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-              <div className="space-y-5">
+              <div className="space-y-3">
                 {MEAL_TYPE_ORDER.map((type) => {
                   const items = meals.filter((m) => resolveMealType(m) === type);
                   if (items.length === 0 && !draggingId) return null;
@@ -307,23 +309,26 @@ export default function Today() {
                   return (
                     <DroppableSection key={type} id={type} isDragging={!!draggingId}>
                       <MealSectionHeader kcal={sectionKcal} count={items.length} meta={meta} />
-                      <div className="space-y-2 mt-2">
-                        {items.map((m) => (
-                          <DraggableMealRow
-                            key={m.id}
-                            meal={m}
-                            onEdit={() => setEditingMeal(m)}
-                            onDelete={() => { if (window.confirm(`Smazat "${m.name}"?`)) deleteMeal(m.id); }}
-                          />
-                        ))}
-                      </div>
+                      {items.map((m) => (
+                        <DraggableMealRow
+                          key={m.id}
+                          meal={m}
+                          onEdit={() => setEditingMeal(m)}
+                          onDelete={() => { if (window.confirm(`Smazat "${m.name}"?`)) deleteMeal(m.id); }}
+                        />
+                      ))}
+                      {items.length === 0 && draggingId && (
+                        <div className="px-4 py-5 flex items-center justify-center">
+                          <span className="text-[11px] text-ink-mute italic">Přetáhni sem</span>
+                        </div>
+                      )}
                     </DroppableSection>
                   );
                 })}
               </div>
               <DragOverlay dropAnimation={null}>
                 {draggingId ? (
-                  <div className="opacity-90 scale-[1.03] shadow-2xl rounded-2xl">
+                  <div className="opacity-95 scale-[1.02] shadow-2xl rounded-3xl overflow-hidden">
                     <MealCard meal={meals.find((m) => m.id === draggingId)!} onClick={() => {}} />
                   </div>
                 ) : null}
@@ -418,23 +423,26 @@ function MealSectionHeader({ kcal, count, meta }: {
   meta: typeof MEAL_TYPE_META[MealType];
 }) {
   return (
-    <div className="relative rounded-2xl overflow-hidden">
-      <div className={`absolute inset-0 bg-gradient-to-br ${meta.tint}`} />
-      <div className="absolute inset-0 bg-black/35 backdrop-blur-xl" />
-      <div className="relative flex items-center gap-3 px-4 py-2.5">
-        <div className="text-xl leading-none">{meta.icon}</div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-extrabold text-white leading-tight">{meta.label}</div>
-          <div className="text-[10px] text-white/70 tabular-nums">{count} {count === 1 ? 'položka' : count >= 2 && count <= 4 ? 'položky' : 'položek'}</div>
-        </div>
-        <div className="text-right shrink-0">
-          <div className="text-base font-extrabold tabular-nums text-white leading-none">{Math.round(kcal)}</div>
-          <div className="text-[10px] text-white/70">kcal</div>
+    <div className="relative overflow-hidden">
+      <div className={`absolute inset-0 bg-gradient-to-r ${meta.tint}`} />
+      <div className="absolute inset-0 bg-black/30" />
+      <div className="relative flex items-center gap-3 px-4 py-3">
+        <span className="text-xl leading-none">{meta.icon}</span>
+        <span className="flex-1 font-bold text-sm text-white">{meta.label}</span>
+        {count > 0 && (
+          <span className="text-[10px] font-semibold bg-black/25 text-white/70 px-2 py-0.5 rounded-full tabular-nums">
+            {count}×
+          </span>
+        )}
+        <div className="shrink-0 text-right">
+          <span className="font-extrabold text-sm tabular-nums text-white">{Math.round(kcal)}</span>
+          <span className="text-[10px] text-white/60 ml-0.5">kcal</span>
         </div>
       </div>
     </div>
   );
 }
+
 function DroppableSection({ id, children, isDragging }: {
   id: MealType;
   children: React.ReactNode;
@@ -445,9 +453,9 @@ function DroppableSection({ id, children, isDragging }: {
     <div
       ref={setNodeRef}
       className={[
-        'rounded-3xl transition-all duration-200',
-        isDragging ? 'ring-1 ring-white/10 p-2' : '',
-        isOver ? 'ring-2 ring-coral-400/70 bg-coral-400/5' : '',
+        'glass rounded-3xl overflow-hidden transition-all duration-200',
+        isOver ? 'ring-2 ring-coral-400/50' : '',
+        isDragging && !isOver ? 'ring-1 ring-white/[0.08]' : '',
       ].join(' ')}
     >
       {children}
@@ -466,36 +474,53 @@ function DraggableMealRow({ meal, onEdit, onDelete }: {
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0 : 1 }}
-      className="flex items-stretch gap-2"
+      className="flex items-center gap-2.5 px-3 py-2.5 border-t border-white/[0.05] first:border-t-0"
     >
-      {/* drag handle — separate strip, always visible */}
+      {/* grip */}
       <button
         {...listeners}
         {...attributes}
-        className="shrink-0 w-8 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 flex items-center justify-center text-ink-mute hover:text-ink-soft active:bg-white/15 touch-none transition-colors"
-        aria-label="Přetáhnout jídlo"
+        className="shrink-0 text-ink-mute/40 hover:text-ink-mute active:text-ink-soft touch-none transition-colors p-1 -m-1"
         tabIndex={-1}
+        aria-label="Přetáhnout"
       >
-        <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
-          <circle cx="4" cy="2"  r="1.5"/><circle cx="8" cy="2"  r="1.5"/>
-          <circle cx="4" cy="9"  r="1.5"/><circle cx="8" cy="9"  r="1.5"/>
-          <circle cx="4" cy="16" r="1.5"/><circle cx="8" cy="16" r="1.5"/>
+        <svg width="11" height="15" viewBox="0 0 11 15" fill="currentColor">
+          <circle cx="3.5" cy="1.5" r="1.3"/><circle cx="7.5" cy="1.5" r="1.3"/>
+          <circle cx="3.5" cy="7.5" r="1.3"/><circle cx="7.5" cy="7.5" r="1.3"/>
+          <circle cx="3.5" cy="13.5" r="1.3"/><circle cx="7.5" cy="13.5" r="1.3"/>
         </svg>
       </button>
 
-      {/* card + delete button */}
-      <div className="flex-1 min-w-0 relative">
-        <MealCard meal={meal} onClick={onEdit} />
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-3/80 text-ink-mute hover:text-red-400 active:scale-90 flex items-center justify-center backdrop-blur"
-          aria-label="Smazat jídlo"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-          </svg>
-        </button>
+      {/* thumbnail */}
+      <FoodThumb src={meal.imageDataUrl} alt={meal.name} size="sm" category={categorize(meal.name)} />
+
+      {/* name + macros — tappable for edit */}
+      <button onClick={onEdit} className="flex-1 min-w-0 text-left">
+        <div className="flex items-baseline gap-1.5 min-w-0">
+          <span className="font-semibold text-sm text-ink truncate leading-snug">{meal.name}</span>
+          <span className="text-[11px] text-ink-mute shrink-0">{meal.grams}g</span>
+        </div>
+        <div className="flex items-center gap-1 mt-1">
+          <span className="text-[10px] px-1.5 py-[2px] rounded-md bg-macro-protein/15 text-macro-protein font-semibold">B {meal.protein_g.toFixed(0)}</span>
+          <span className="text-[10px] px-1.5 py-[2px] rounded-md bg-macro-carbs/15 text-macro-carbs font-semibold">S {meal.carbs_g.toFixed(0)}</span>
+          <span className="text-[10px] px-1.5 py-[2px] rounded-md bg-macro-fat/15 text-macro-fat font-semibold">T {meal.fat_g.toFixed(0)}</span>
+        </div>
+      </button>
+
+      {/* kcal */}
+      <div className="shrink-0 text-right">
+        <span className="font-extrabold text-sm tabular-nums text-ink">{Math.round(meal.kcal)}</span>
+        <div className="text-[10px] text-ink-mute">kcal</div>
       </div>
+
+      {/* delete */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        className="shrink-0 w-7 h-7 rounded-full bg-white/[0.04] text-ink-mute/60 hover:text-red-400 active:scale-90 flex items-center justify-center transition-colors"
+        aria-label="Smazat"
+      >
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
     </div>
   );
 }

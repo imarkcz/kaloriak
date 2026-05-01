@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 
 export default function Profile() {
-  const { data, user, setProfile, setApiKey, resetAll, signOutUser, reloadFromCloud, forceUploadToCloud } = useApp();
+  const { data, user, setProfile, resetAll, signOutUser, reloadFromCloud, forceUploadToCloud } = useApp();
   const [syncMsg, setSyncMsg] = useState('');
   const [syncing, setSyncing] = useState(false);
 
@@ -84,7 +84,6 @@ export default function Profile() {
   // here since this is a preview without today's actual activity log).
   // Otherwise calorie shown in Profile won't match what user sees on Today.
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | undefined>(p?.avatarDataUrl);
-  const [apiKey] = useState(data.geminiApiKey);
   const [saved, setSaved] = useState(false);
 
   if (!p) {
@@ -106,7 +105,6 @@ export default function Profile() {
       useDynamicTdee,
       customMacroSplit: customSplit,
     });
-    setApiKey(apiKey.trim());
     haptic('success');
     setSaved(true);
     setTimeout(() => setSaved(false), 1600);
@@ -127,7 +125,7 @@ export default function Profile() {
     <div className="min-h-dvh pt-safe pb-32">
       <header className="max-w-md mx-auto px-5 pt-5 pb-3 animate-fade-up">
         <h1 className="text-3xl font-extrabold tracking-tight text-ink">Profil</h1>
-        <p className="text-ink-soft text-sm mt-1">Uprav své údaje a API klíč.</p>
+        <p className="text-ink-soft text-sm mt-1">Uprav své údaje.</p>
       </header>
 
       <main className="max-w-md mx-auto px-5 space-y-3">
