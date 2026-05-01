@@ -123,30 +123,40 @@ export default function Today() {
 
       <main className="max-w-md mx-auto px-5 space-y-4">
         {/* HERO RING */}
-        <section className="glass rounded-[32px] p-6 flex flex-col items-center animate-pop">
+        <section
+          className="rounded-[32px] p-6 flex flex-col items-center animate-pop relative overflow-hidden"
+          style={{
+            background: 'linear-gradient(145deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.03) 100%)',
+            backdropFilter: 'blur(32px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(32px) saturate(180%)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            boxShadow: '0 8px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)',
+          }}
+        >
           <ProgressRing
             value={kcal}
             target={targets.kcal}
-            size={220}
-            stroke={16}
+            size={224}
+            stroke={12}
             hint={
               profile?.useDynamicTdee
                 ? burned > 0
-                  ? `dynamický cíl · BMR + ${burned} z aktivit`
+                  ? `dynamický cíl · BMR + ${burned} kcal z aktivit`
                   : 'dynamický cíl · zatím bez tréninku'
                 : burned > 0
-                  ? `cíl ${baseTargets.kcal} + ${burned} z aktivit`
-                  : `cíl ${baseTargets.kcal} kcal`
+                  ? `cíl ${baseTargets.kcal} + ${burned} kcal z aktivit`
+                  : undefined
             }
           />
-          <div className="mt-5 grid grid-cols-3 gap-2 w-full">
-            <Chip label="Snědeno" value={`${Math.round(kcal)}`} unit="kcal" />
-            <Chip label="Spáleno" value={`${burned}`} unit="kcal" tint="text-emerald-300" />
-            <Chip
+          <div className="mt-5 w-full border-t border-white/[0.07] pt-4 grid grid-cols-3">
+            <HeroStat label="Snědeno" value={Math.round(kcal)} unit="kcal" />
+            <HeroStat label="Spáleno" value={burned} unit="kcal" accent="text-emerald-300" divider />
+            <HeroStat
               label="Netto"
-              value={`${Math.round(kcal - burned)}`}
+              value={Math.round(kcal - burned)}
               unit="kcal"
-              tint={kcal - burned > baseTargets.kcal ? 'text-red-300' : 'text-ink'}
+              accent={kcal - burned > baseTargets.kcal ? 'text-red-300' : undefined}
+              divider
             />
           </div>
         </section>
@@ -349,14 +359,14 @@ export default function Today() {
   );
 }
 
-function Chip({ label, value, unit, tint = 'text-ink' }: { label: string; value: string; unit: string; tint?: string }) {
+function HeroStat({ label, value, unit, accent, divider }: {
+  label: string; value: number; unit: string; accent?: string; divider?: boolean;
+}) {
   return (
-    <div className="rounded-2xl bg-white/[0.07] ring-1 ring-white/10 px-3 py-2 text-center">
-      <div className="text-[10px] uppercase tracking-wider font-bold text-ink-soft">{label}</div>
-      <div className={`mt-0.5 text-sm font-extrabold tabular-nums ${tint}`}>
-        {value}
-        <span className="text-[10px] font-semibold text-ink-soft ml-0.5">{unit}</span>
-      </div>
+    <div className={`flex flex-col items-center gap-0.5 ${divider ? 'border-l border-white/[0.07]' : ''}`}>
+      <span className="text-[9px] uppercase tracking-[0.2em] text-ink-mute font-bold">{label}</span>
+      <span className={`text-base font-extrabold tabular-nums leading-none ${accent ?? 'text-ink'}`}>{value}</span>
+      <span className="text-[10px] text-ink-mute">{unit}</span>
     </div>
   );
 }
