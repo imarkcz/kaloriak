@@ -12,11 +12,35 @@ import Avatar from '../components/Avatar';
 import EditMealSheet from '../components/EditMealSheet';
 import type { Meal, MealType } from '../types';
 import { MEAL_TYPE_META, MEAL_TYPE_ORDER, resolveMealType } from '../lib/mealType';
+import {
+  DndContext, DragOverlay, PointerSensor, TouchSensor,
+  useSensor, useSensors, useDroppable, useDraggable,
+  type DragEndEvent, type DragStartEvent,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 
 export default function Today() {
   const { data, deleteMeal, updateMeal, deleteActivity, setWater } = useApp();
   const [date, setDate] = useState(() => todayISO());
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
+
+  function handleDragStart({ active }: DragStartEvent) {
+    setDraggingId(active.id as string);
+  }
+
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    setDraggingId(null);
+    if (!over) return;
+    const targetType = over.id as MealType;
+    if (!MEAL_TYPE_ORDER.includes(targetType)) return;
+    updateMeal(active.id as string, { mealType: targetType });
+  }
 
   // Reset to today when the app becomes visible again (PWA returns from
   // background, browser tab refocused). Without this, opening the app the
@@ -259,38 +283,38 @@ export default function Today() {
               </div>
             </div>
           ) : (
-            <div className="space-y-5">
-              {MEAL_TYPE_ORDER.map((type) => {
-                const items = meals.filter((m) => resolveMealType(m) === type);
-                if (items.length === 0) return null;
-                const sectionKcal = items.reduce((s, m) => s + m.kcal, 0);
-                const meta = MEAL_TYPE_META[type];
-                return (
-                  <div key={type} className="space-y-2">
-                    <MealSectionHeader kcal={sectionKcal} count={items.length} meta={meta} />
-                    <div className="space-y-2">
-                      {items.map((m) => (
-                        <div key={m.id} className="relative group">
-                          <MealCard meal={m} onClick={() => setEditingMeal(m)} />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (window.confirm(`Smazat "${m.name}"?`)) deleteMeal(m.id);
-                            }}
-                            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-3/80 text-ink-mute hover:text-red-400 active:scale-90 flex items-center justify-center backdrop-blur"
-                            aria-label="Smazat jídlo"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+              <div className="space-y-5">
+                {MEAL_TYPE_ORDER.map((type) => {
+                  const items = meals.filter((m) => resolveMealType(m) === type);
+                  if (items.length === 0 && !draggingId) return null;
+                  const sectionKcal = items.reduce((s, m) => s + m.kcal, 0);
+                  const meta = MEAL_TYPE_META[type];
+                  return (
+                    <DroppableSection key={type} id={type} isDragging={!!draggingId}>
+                      <MealSectionHeader kcal={sectionKcal} count={items.length} meta={meta} />
+                      <div className="space-y-2 mt-2">
+                        {items.map((m) => (
+                          <DraggableMealRow
+                            key={m.id}
+                            meal={m}
+                            onEdit={() => setEditingMeal(m)}
+                            onDelete={() => { if (window.confirm(`Smazat "${m.name}"?`)) deleteMeal(m.id); }}
+                          />
+                        ))}
+                      </div>
+                    </DroppableSection>
+                  );
+                })}
+              </div>
+              <DragOverlay dropAnimation={null}>
+                {draggingId ? (
+                  <div className="opacity-90 scale-[1.03] shadow-2xl rounded-2xl">
+                    <MealCard meal={meals.find((m) => m.id === draggingId)!} onClick={() => {}} />
                   </div>
-                );
-              })}
-            </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           )}
         </section>
       </main>
@@ -397,5 +421,67 @@ function MealSectionHeader({ kcal, count, meta }: {
     </div>
   );
 }
+function DroppableSection({ id, children, isDragging }: {
+  id: MealType;
+  children: React.ReactNode;
+  isDragging: boolean;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={[
+        'rounded-3xl transition-all duration-200',
+        isDragging ? 'ring-1 ring-white/10 p-2' : '',
+        isOver ? 'ring-2 ring-coral-400/70 bg-coral-400/5' : '',
+      ].join(' ')}
+    >
+      {children}
+    </div>
+  );
+}
+
+function DraggableMealRow({ meal, onEdit, onDelete }: {
+  meal: Meal;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: meal.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0 : 1 }}
+      className="relative group"
+    >
+      <MealCard meal={meal} onClick={onEdit} />
+      {/* drag handle */}
+      <button
+        {...listeners}
+        {...attributes}
+        className="absolute top-1/2 -translate-y-1/2 left-2 w-7 h-7 rounded-xl flex items-center justify-center text-ink-mute/40 hover:text-ink-soft active:text-ink touch-none opacity-0 group-hover:opacity-100 transition-opacity"
+        aria-label="Přetáhnout jídlo"
+        tabIndex={-1}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
+          <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+          <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+        </svg>
+      </button>
+      {/* delete button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-3/80 text-ink-mute hover:text-red-400 active:scale-90 flex items-center justify-center backdrop-blur"
+        aria-label="Smazat jídlo"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 // Suppress unused-import warning for MealType when no other usage exists.
 export type { MealType };
