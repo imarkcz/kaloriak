@@ -452,33 +452,36 @@ function DraggableMealRow({ meal, onEdit, onDelete }: {
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0 : 1 }}
-      className="relative group"
+      className="flex items-stretch gap-2"
     >
-      <MealCard meal={meal} onClick={onEdit} />
-      {/* drag handle */}
+      {/* drag handle — separate strip, always visible */}
       <button
         {...listeners}
         {...attributes}
-        className="absolute top-1/2 -translate-y-1/2 left-2 w-7 h-7 rounded-xl flex items-center justify-center text-ink-mute/50 hover:text-ink-soft active:text-ink touch-none transition-colors"
+        className="shrink-0 w-8 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 flex items-center justify-center text-ink-mute hover:text-ink-soft active:bg-white/15 touch-none transition-colors"
         aria-label="Přetáhnout jídlo"
         tabIndex={-1}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-          <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
-          <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
-          <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+        <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
+          <circle cx="4" cy="2"  r="1.5"/><circle cx="8" cy="2"  r="1.5"/>
+          <circle cx="4" cy="9"  r="1.5"/><circle cx="8" cy="9"  r="1.5"/>
+          <circle cx="4" cy="16" r="1.5"/><circle cx="8" cy="16" r="1.5"/>
         </svg>
       </button>
-      {/* delete button */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-3/80 text-ink-mute hover:text-red-400 active:scale-90 flex items-center justify-center backdrop-blur"
-        aria-label="Smazat jídlo"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-        </svg>
-      </button>
+
+      {/* card + delete button */}
+      <div className="flex-1 min-w-0 relative">
+        <MealCard meal={meal} onClick={onEdit} />
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-surface-3/80 text-ink-mute hover:text-red-400 active:scale-90 flex items-center justify-center backdrop-blur"
+          aria-label="Smazat jídlo"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
