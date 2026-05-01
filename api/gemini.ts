@@ -58,6 +58,7 @@ type ProviderResult = unknown;
 interface FeedbackContext {
   hour: number;
   goal: string;
+  sex: 'male' | 'female';
   kcal: { eaten: number; target: number };
   protein: { eaten: number; target: number };
   carbs: { eaten: number; target: number };
@@ -65,14 +66,15 @@ interface FeedbackContext {
   meals: string[];
 }
 
-const FEEDBACK_SYSTEM = `Jsi přátelský nutriční kouč aplikace Kaloriak. Napiš 1-2 věty osobního feedbacku v češtině — konkrétního, akčního, přátelského. Nezačínej "Skvěle!" ani "Výborně!". Holý text bez markdownu.`;
+const FEEDBACK_SYSTEM = `Jsi přátelský nutriční kouč aplikace Kaloriak. Napiš 1-2 věty osobního feedbacku v češtině — konkrétního, akčního, přátelského. Nezačínej "Skvěle!" ani "Výborně!". Holý text bez markdownu. Skloňuj DŮSLEDNĚ podle pohlaví uživatele — nikdy nemíchej rody v jedné odpovědi.`;
 
 function buildFeedbackPrompt(ctx: FeedbackContext): string {
   const goalCz = ctx.goal === 'lose' ? 'hubnutí' : ctx.goal === 'gain' ? 'nabírání svalů' : 'udržování váhy';
   const rem = ctx.kcal.target - ctx.kcal.eaten;
   const remStr = rem >= 0 ? `${rem} kcal zbývá` : `${Math.abs(rem)} kcal přes cíl`;
   const timeLabel = ctx.hour < 11 ? 'ráno' : ctx.hour < 15 ? 'dopoledne' : ctx.hour < 18 ? 'odpoledne' : ctx.hour < 21 ? 'večer' : 'pozdě večer';
-  return `Čas: ${timeLabel} (${ctx.hour}:00)\nCíl: ${goalCz}\nKalorie: ${ctx.kcal.eaten}/${ctx.kcal.target} kcal (${remStr})\nBílkoviny: ${ctx.protein.eaten}/${ctx.protein.target} g\nSacharidy: ${ctx.carbs.eaten}/${ctx.carbs.target} g\nTuky: ${ctx.fat.eaten}/${ctx.fat.target} g\nDnešní jídla: ${ctx.meals.length ? ctx.meals.join(', ') : 'žádná'}`;
+  const sexLabel = ctx.sex === 'male' ? 'muž (skloňuj mužsky, např. "udělal jsi", "byl jsi")' : 'žena (skloňuj žensky, např. "udělala jsi", "byla jsi")';
+  return `Pohlaví uživatele: ${sexLabel}\nČas: ${timeLabel} (${ctx.hour}:00)\nCíl: ${goalCz}\nKalorie: ${ctx.kcal.eaten}/${ctx.kcal.target} kcal (${remStr})\nBílkoviny: ${ctx.protein.eaten}/${ctx.protein.target} g\nSacharidy: ${ctx.carbs.eaten}/${ctx.carbs.target} g\nTuky: ${ctx.fat.eaten}/${ctx.fat.target} g\nDnešní jídla: ${ctx.meals.length ? ctx.meals.join(', ') : 'žádná'}`;
 }
 
 async function geminiFeedback(ctx: FeedbackContext): Promise<string> {

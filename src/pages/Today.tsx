@@ -206,6 +206,7 @@ export default function Today() {
           targets={targets}
           meals={meals}
           goal={profile?.goal ?? 'maintain'}
+          sex={profile?.sex ?? 'male'}
         />
 
         {/* ACTIVITIES */}
@@ -499,12 +500,13 @@ function DraggableMealRow({ meal, onEdit, onDelete }: {
   );
 }
 
-function DailyFeedbackCard({ date, kcal, protein, carbs, fat, targets, meals, goal }: {
+function DailyFeedbackCard({ date, kcal, protein, carbs, fat, targets, meals, goal, sex }: {
   date: string;
   kcal: number; protein: number; carbs: number; fat: number;
   targets: { kcal: number; protein_g: number; carbs_g: number; fat_g: number };
   meals: Meal[];
   goal: 'lose' | 'maintain' | 'gain';
+  sex: 'male' | 'female';
 }) {
   const cacheKey = `feedback:${date}:${meals.length}`;
   const [text, setText] = useState<string | null>(null);
@@ -516,6 +518,7 @@ function DailyFeedbackCard({ date, kcal, protein, carbs, fat, targets, meals, go
     return {
       hour: new Date().getHours(),
       goal,
+      sex,
       kcal: { eaten: Math.round(kcal), target: targets.kcal },
       protein: { eaten: Math.round(protein), target: targets.protein_g },
       carbs: { eaten: Math.round(carbs), target: targets.carbs_g },

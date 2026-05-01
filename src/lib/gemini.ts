@@ -73,6 +73,7 @@ async function callProxy(body: object): Promise<unknown> {
 export interface FeedbackContext {
   hour: number;
   goal: 'lose' | 'maintain' | 'gain';
+  sex: 'male' | 'female';
   kcal: { eaten: number; target: number };
   protein: { eaten: number; target: number };
   carbs: { eaten: number; target: number };
