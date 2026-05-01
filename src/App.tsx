@@ -58,20 +58,25 @@ function Shell() {
 function AnimatedBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
-      {/* coral blob — top-left */}
+      {/* coral — top-left, primary glow */}
       <div
-        className="bg-blob-1 absolute -top-[280px] -left-[180px] w-[650px] h-[650px] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(249,115,102,0.55), rgba(251,113,133,0.3) 50%, transparent 75%)', filter: 'blur(80px)', opacity: 0.55 }}
+        className="bg-blob-1 absolute -top-[200px] -left-[150px] w-[750px] h-[750px] rounded-full"
+        style={{ background: 'radial-gradient(circle at 40% 40%, #f97366 0%, #fb7185 35%, transparent 70%)', filter: 'blur(55px)', opacity: 0.55 }}
       />
-      {/* violet blob — bottom-right */}
+      {/* violet — bottom-right */}
       <div
-        className="bg-blob-2 absolute -bottom-[200px] -right-[160px] w-[580px] h-[580px] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(167,139,250,0.5), rgba(124,58,237,0.25) 50%, transparent 75%)', filter: 'blur(90px)', opacity: 0.45 }}
+        className="bg-blob-2 absolute -bottom-[180px] -right-[140px] w-[680px] h-[680px] rounded-full"
+        style={{ background: 'radial-gradient(circle at 55% 55%, #a78bfa 0%, #7c3aed 40%, transparent 72%)', filter: 'blur(60px)', opacity: 0.50 }}
       />
-      {/* indigo blob — mid-right, subtle */}
+      {/* amber — top-right accent */}
       <div
-        className="bg-blob-3 absolute top-[38%] -right-[120px] w-[420px] h-[420px] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(96,165,250,0.35), transparent 70%)', filter: 'blur(70px)', opacity: 0.35 }}
+        className="bg-blob-3 absolute -top-[100px] -right-[80px] w-[480px] h-[480px] rounded-full"
+        style={{ background: 'radial-gradient(circle at 50% 50%, #fbbf24 0%, #f59e0b 40%, transparent 70%)', filter: 'blur(65px)', opacity: 0.28 }}
+      />
+      {/* teal — bottom-left counter-accent */}
+      <div
+        className="bg-blob-1 absolute bottom-[10%] -left-[100px] w-[380px] h-[380px] rounded-full"
+        style={{ background: 'radial-gradient(circle, #34d399 0%, #059669 45%, transparent 70%)', filter: 'blur(70px)', opacity: 0.20, animationDelay: '-12s' }}
       />
     </div>
   );
