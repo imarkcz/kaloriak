@@ -836,6 +836,7 @@ function PickedConfig({ picked, grams, onGramsChange }: { picked: FoodSearchResu
                 step={0.5}
                 value={pieces}
                 onChange={(e) => setPieces(Number(e.target.value))}
+                onWheel={(e) => e.currentTarget.blur()}
                 className="flex-1"
               />
               <button

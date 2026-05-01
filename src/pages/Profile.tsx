@@ -633,6 +633,7 @@ function Slider({
             lastTick.current = v;
           }
         }}
+        onWheel={(e) => e.currentTarget.blur()}
         className="w-full"
       />
     </label>

@@ -113,6 +113,7 @@ export default function AddActivity() {
             step={5}
             value={minutes}
             onChange={(e) => { setMinutes(Number(e.target.value)); setKcalOverride(null); }}
+            onWheel={(e) => e.currentTarget.blur()}
             className="w-full"
           />
           <div className="flex justify-between text-[10px] text-ink-mute mt-1 tabular-nums">

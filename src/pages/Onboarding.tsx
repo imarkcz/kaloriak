@@ -81,6 +81,7 @@ export default function Onboarding() {
                     max={90}
                     value={age}
                     onChange={(e) => setAge(Number(e.target.value))}
+                    onWheel={(e) => e.currentTarget.blur()}
                     className="w-full"
                   />
                 </Field>
@@ -227,6 +228,7 @@ function BigSlider({ label, value, unit, min, max, step, onChange, decimals = 0 
             lastTick.current = v;
           }
         }}
+        onWheel={(e) => e.currentTarget.blur()}
         className="w-full"
       />
     </div>

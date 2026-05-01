@@ -93,6 +93,7 @@ export default function EditMealSheet({ meal, onClose, onSave }: Props) {
             step={1}
             value={grams}
             onChange={(e) => handleGrams(Number(e.target.value))}
+            onWheel={(e) => e.currentTarget.blur()}
             className="w-full"
           />
           <div className="flex items-center gap-2 mt-2">

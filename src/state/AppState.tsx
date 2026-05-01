@@ -115,9 +115,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const local = loadLocal();
 
         if (docExists && cloud && (cloud.onboarded || cloud.meals.length > 0 || cloud.profile)) {
-          // Cloud has real data — merge with local blobs
-          skipNextSync.current = true;
-          setData({
+          // Cloud has real data — merge with local blobs AND local-only meals not yet synced
+          const cloudMealIds = new Set(cloud.meals.map((m) => m.id));
+          const localOnlyMeals = local.meals.filter((m) => !cloudMealIds.has(m.id));
+          const merged: AppData = {
             ...cloud,
             // Never lose onboarded=true — cloud field may be missing or false due to old save
             onboarded: cloud.onboarded || local.onboarded,
@@ -125,11 +126,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
             profile: cloud.profile
               ? { ...cloud.profile, avatarDataUrl: local.profile?.avatarDataUrl }
               : local.profile,
-            meals: cloud.meals.map((cm) => {
-              const lm = local.meals.find((m) => m.id === cm.id);
-              return lm ? { ...cm, imageDataUrl: lm.imageDataUrl } : cm;
-            }),
-          });
+            meals: [
+              ...localOnlyMeals,
+              ...cloud.meals.map((cm) => {
+                const lm = local.meals.find((m) => m.id === cm.id);
+                return lm ? { ...cm, imageDataUrl: lm.imageDataUrl } : cm;
+              }),
+            ],
+          };
+          skipNextSync.current = true;
+          setData(merged);
+          // Immediately upload if local had unsynced meals to prevent future loss
+          if (localOnlyMeals.length > 0) {
+            await saveToFirestore(firebaseUser.uid, merged);
+          }
         } else if (docExists) {
           // Firestore doc exists but has no meaningful data (returning user, data lost).
           // Keep local state — if local also empty, at least skip onboarding since account exists.
