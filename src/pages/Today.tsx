@@ -459,7 +459,7 @@ function DraggableMealRow({ meal, onEdit, onDelete }: {
       <button
         {...listeners}
         {...attributes}
-        className="absolute top-1/2 -translate-y-1/2 left-2 w-7 h-7 rounded-xl flex items-center justify-center text-ink-mute/40 hover:text-ink-soft active:text-ink touch-none opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-1/2 -translate-y-1/2 left-2 w-7 h-7 rounded-xl flex items-center justify-center text-ink-mute/50 hover:text-ink-soft active:text-ink touch-none transition-colors"
         aria-label="Přetáhnout jídlo"
         tabIndex={-1}
       >
