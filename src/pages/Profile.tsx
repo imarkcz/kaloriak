@@ -526,14 +526,18 @@ function UpdateCard() {
   async function check() {
     setStatus('checking');
     haptic('tap');
-    const trigger = (window as unknown as { __kaloriakCheckUpdate?: () => Promise<void> }).__kaloriakCheckUpdate;
-    if (trigger) {
-      try { await trigger(); } catch { /* ignore */ }
-    }
-    setTimeout(() => {
-      setStatus('uptodate');
-      setTimeout(() => setStatus('idle'), 2400);
-    }, 1500);
+    try {
+      const res = await fetch('/build.txt', { cache: 'no-store' });
+      const serverBuild = (await res.text()).trim();
+      if (serverBuild !== __BUILD_ID__) {
+        // New version on server — trigger SW update so the banner appears,
+        // then fall through to show "uptodate" in case SW update is slow.
+        const trigger = (window as unknown as { __kaloriakCheckUpdate?: () => Promise<void> }).__kaloriakCheckUpdate;
+        if (trigger) await trigger().catch(() => {});
+      }
+    } catch { /* network error — just show uptodate */ }
+    setStatus('uptodate');
+    setTimeout(() => setStatus('idle'), 2400);
   }
 
   // Hard reset — unregister SW + clear all caches + reload. Keeps localStorage
@@ -550,9 +554,9 @@ function UpdateCard() {
         await Promise.all(keys.map((k) => caches.delete(k)));
       }
     } finally {
-      // Navigate to root before reload — without an active SW, Vercel won't
-      // SPA-fallback a sub-route reload (returns 404 until rewrites kick in).
-      window.location.replace('/');
+      // Cache-busting query param forces the browser (and iOS PWA) to make
+      // a real network request rather than serving from disk cache.
+      window.location.href = '/?_=' + Date.now();
     }
   }
 
