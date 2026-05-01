@@ -167,9 +167,9 @@ function hitToResult(h: OFFSearchHit): RankedResult | null {
 const SEARCH_FIELDS = 'code,product_name,product_name_cs,generic_name_cs,brands,image_thumb_url,image_small_url,serving_quantity,nutriments';
 const PRODUCT_FIELDS = 'code,product_name,product_name_cs,generic_name_cs,brands,image_thumb_url,image_small_url,serving_quantity,serving_size,nutriments';
 
-// search.openfoodfacts.org has the best fulltext but no CORS — proxy in dev,
-// in prod it will fail and we fall back to the v2 brand search below.
-const SEARCH_BASE = import.meta.env.DEV ? '/off-search' : 'https://search.openfoodfacts.org';
+// search.openfoodfacts.org blocks CORS from browsers — always use the Vercel
+// proxy so fulltext works in both dev and production.
+const SEARCH_BASE = '/off-search';
 // world.openfoodfacts.org/api/v2/search has Access-Control-Allow-Origin: *
 // — works in dev AND prod, but only does structured (tag) search, not fulltext.
 const V2_BASE = 'https://world.openfoodfacts.org/api/v2/search';
