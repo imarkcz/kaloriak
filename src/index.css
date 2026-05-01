@@ -26,7 +26,11 @@ h3 { letter-spacing: -0.018em; }
 
 body {
   margin: 0;
-  background: #08080e;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 0%, rgba(249,115,102,0.22), transparent 65%),
+    radial-gradient(ellipse 60% 50% at 90% 80%, rgba(167,139,250,0.18), transparent 65%),
+    #08080e;
+  background-attachment: fixed;
 }
 
 /* Safe area for iOS notch / home bar */
@@ -83,35 +87,6 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer;
 }
 
-/* Animated background blobs */
-.bg-blob-1 {
-  animation: blobFloat1 30s ease-in-out infinite;
-  will-change: transform;
-}
-.bg-blob-2 {
-  animation: blobFloat2 38s ease-in-out infinite;
-  will-change: transform;
-}
-.bg-blob-3 {
-  animation: blobFloat3 24s ease-in-out infinite;
-  will-change: transform;
-}
-@keyframes blobFloat1 {
-  0%, 100% { transform: translate(0px, 0px) scale(1); }
-  25%  { transform: translate(55px, -75px) scale(1.09); }
-  50%  { transform: translate(-30px, 45px) scale(0.93); }
-  75%  { transform: translate(75px, 25px) scale(1.05); }
-}
-@keyframes blobFloat2 {
-  0%, 100% { transform: translate(0px, 0px) scale(1); }
-  33%  { transform: translate(-65px, 55px) scale(0.88); }
-  66%  { transform: translate(45px, -65px) scale(1.12); }
-}
-@keyframes blobFloat3 {
-  0%, 100% { transform: translate(0px, 0px) scale(1); }
-  40%  { transform: translate(-45px, -55px) scale(1.14); }
-  75%  { transform: translate(60px, 40px) scale(0.87); }
-}
 
 /* Liquid glass card */
 .glass {
