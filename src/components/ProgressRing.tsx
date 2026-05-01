@@ -132,14 +132,10 @@ export default function ProgressRing({
 
         {/* Main number */}
         <span
-          className="tabular-nums leading-none font-bold font-display"
+          className="tabular-nums leading-none font-bold font-display text-white"
           style={{
             fontSize: size * 0.285,
             letterSpacing: '-0.02em',
-            backgroundImage: `linear-gradient(170deg, #ffffff 10%, ${grad.mid} 110%)`,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
           }}
         >
           {displayValue}
