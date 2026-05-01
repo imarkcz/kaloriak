@@ -55,10 +55,33 @@ function Shell() {
   );
 }
 
+function AnimatedBackground() {
+  return (
+    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
+      {/* coral blob — top-left */}
+      <div
+        className="bg-blob-1 absolute -top-[280px] -left-[180px] w-[650px] h-[650px] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(249,115,102,0.55), rgba(251,113,133,0.3) 50%, transparent 75%)', filter: 'blur(80px)', opacity: 0.55 }}
+      />
+      {/* violet blob — bottom-right */}
+      <div
+        className="bg-blob-2 absolute -bottom-[200px] -right-[160px] w-[580px] h-[580px] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(167,139,250,0.5), rgba(124,58,237,0.25) 50%, transparent 75%)', filter: 'blur(90px)', opacity: 0.45 }}
+      />
+      {/* indigo blob — mid-right, subtle */}
+      <div
+        className="bg-blob-3 absolute top-[38%] -right-[120px] w-[420px] h-[420px] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(96,165,250,0.35), transparent 70%)', filter: 'blur(70px)', opacity: 0.35 }}
+      />
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <AppProvider>
       <BrowserRouter>
+        <AnimatedBackground />
         <UpdateBanner />
         <Shell />
       </BrowserRouter>
