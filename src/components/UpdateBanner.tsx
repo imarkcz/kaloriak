@@ -42,7 +42,10 @@ export default function UpdateBanner() {
               <div className="text-[11px] text-white/80 leading-snug">Klepni pro aktualizaci.</div>
             </div>
             <button
-              onClick={() => updateServiceWorker(true)}
+              onClick={() => {
+                updateServiceWorker(false);
+                window.location.href = '/?_=' + Date.now();
+              }}
               className="px-3 py-2 rounded-xl bg-white text-coral-600 font-bold text-xs active:scale-95 transition-transform"
             >
               Aktualizovat
