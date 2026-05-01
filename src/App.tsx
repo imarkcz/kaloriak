@@ -8,6 +8,7 @@ import Profile from './pages/Profile';
 import BottomNav from './components/BottomNav';
 import LoginScreen from './components/LoginScreen';
 import UpdateBanner from './components/UpdateBanner';
+import SparklesCanvas from './components/SparklesCanvas';
 
 function Shell() {
   const { data, user, authLoading, dataLoading } = useApp();
@@ -59,6 +60,7 @@ export default function App() {
   return (
     <AppProvider>
       <BrowserRouter>
+        <SparklesCanvas />
         <UpdateBanner />
         <Shell />
       </BrowserRouter>
