@@ -412,6 +412,169 @@ export const FOODS_DB: FoodItem[] = [
   { id: 'feta', name: 'Feta sýr', per: 100, defaultGrams: 50, kcal: 264, protein_g: 14, carbs_g: 4, fat_g: 21, category: 'mlecne', tags: ['feta'] },
   { id: 'parmezan', name: 'Parmezán', per: 100, defaultGrams: 20, kcal: 392, protein_g: 36, carbs_g: 4, fat_g: 26, category: 'mlecne', tags: ['parmezan'] },
   { id: 'cheddar', name: 'Cheddar', per: 100, defaultGrams: 30, kcal: 402, protein_g: 25, carbs_g: 1.3, fat_g: 33, category: 'mlecne', tags: ['cheddar'] },
+
+  // VEJCE — přípravy (rozšíření)
+  { id: 'vejce-benedict', name: 'Vejce Benedikt (Eggs Benedict)', per: 100, defaultGrams: 300, kcal: 270, protein_g: 14, carbs_g: 16, fat_g: 17, category: 'jine', tags: ['benedict', 'pošírované', 'hollandaise', 'snidane', 'brunch'] },
+  { id: 'vejce-florentine', name: 'Vejce Florentine (se špenátem)', per: 100, defaultGrams: 280, kcal: 220, protein_g: 13, carbs_g: 14, fat_g: 13, category: 'jine', tags: ['florentine', 'spinach', 'pošírované', 'snidane'] },
+  { id: 'vejce-royale', name: 'Vejce Royale (s lososem)', per: 100, defaultGrams: 290, kcal: 285, protein_g: 16, carbs_g: 15, fat_g: 18, category: 'jine', tags: ['royale', 'losos', 'pošírované'] },
+  { id: 'omeleta-zeli', name: 'Omeleta se zeleninou', per: 100, defaultGrams: 200, kcal: 145, protein_g: 10, carbs_g: 4, fat_g: 10, category: 'jine', tags: ['omeleta', 'vajicka', 'zelenina'] },
+  { id: 'vajecna-snidane', name: 'Anglická snídaně (vejce, slanina, fazole)', per: 100, defaultGrams: 400, kcal: 210, protein_g: 13, carbs_g: 11, fat_g: 13, category: 'jine', tags: ['anglicka', 'snidane', 'full english'] },
+  { id: 'deviled-eggs', name: 'Plněná vajíčka (deviled eggs)', per: 100, defaultGrams: 120, kcal: 240, protein_g: 13, carbs_g: 2, fat_g: 20, category: 'jine', tags: ['plnena', 'vajicka', 'deviled'] },
+
+  // PROTEINY / DOPLŇKY
+  { id: 'whey-protein', name: 'Whey protein (prášek)', per: 100, defaultGrams: 30, kcal: 390, protein_g: 80, carbs_g: 6, fat_g: 5, category: 'jine', tags: ['protein', 'syrova', 'praskove', 'whey'] },
+  { id: 'casein-protein', name: 'Kaseinový protein (prášek)', per: 100, defaultGrams: 30, kcal: 365, protein_g: 75, carbs_g: 8, fat_g: 4, category: 'jine', tags: ['kasein', 'protein', 'praskove'] },
+  { id: 'plant-protein', name: 'Rostlinný protein (hrachový/rýžový)', per: 100, defaultGrams: 30, kcal: 370, protein_g: 70, carbs_g: 10, fat_g: 6, category: 'jine', tags: ['rostlinny', 'protein', 'hrachovy', 'ryzovy', 'vegan'] },
+  { id: 'protein-bar', name: 'Proteinová tyčinka', per: 100, defaultGrams: 60, kcal: 370, protein_g: 33, carbs_g: 30, fat_g: 12, category: 'snack', tags: ['protein', 'tycinka', 'bar'] },
+  { id: 'protein-cookies', name: 'Proteinové sušenky', per: 100, defaultGrams: 60, kcal: 380, protein_g: 28, carbs_g: 35, fat_g: 12, category: 'snack', tags: ['protein', 'suseny', 'cookies'] },
+  { id: 'kreatin', name: 'Kreatin (prášek)', per: 100, defaultGrams: 5, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, category: 'jine', tags: ['kreatin', 'creatine'] },
+  { id: 'bcaa', name: 'BCAA aminokyseliny (prášek)', per: 100, defaultGrams: 10, kcal: 39, protein_g: 9.5, carbs_g: 0, fat_g: 0, category: 'jine', tags: ['bcaa', 'aminokyseliny'] },
+  { id: 'mass-gainer', name: 'Mass gainer (prášek)', per: 100, defaultGrams: 100, kcal: 380, protein_g: 25, carbs_g: 60, fat_g: 5, category: 'jine', tags: ['mass', 'gainer', 'nabrani'] },
+
+  // POMAZÁNKY, OMÁČKY, KOŘENÍ
+  { id: 'arasidove-maslo', name: 'Arašídové máslo', per: 100, defaultGrams: 30, kcal: 588, protein_g: 25, carbs_g: 20, fat_g: 50, category: 'jine', tags: ['arasidak', 'peanut', 'butter', 'pb'] },
+  { id: 'arasidove-maslo-crunchy', name: 'Arašídové máslo křupavé', per: 100, defaultGrams: 30, kcal: 585, protein_g: 24, carbs_g: 20, fat_g: 50, category: 'jine', tags: ['arasidak', 'peanut', 'crunchy'] },
+  { id: 'nutella', name: 'Nutella', per: 100, defaultGrams: 20, kcal: 530, protein_g: 6, carbs_g: 58, fat_g: 31, category: 'jine', tags: ['nutella', 'liskoorechovy', 'krem'] },
+  { id: 'philadelphia', name: 'Philadelphia krémový sýr', per: 100, defaultGrams: 30, kcal: 265, protein_g: 6, carbs_g: 4, fat_g: 25, category: 'mlecne', tags: ['philadelphia', 'kremovy', 'syr', 'cream cheese'] },
+  { id: 'kremovy-syr', name: 'Krémový sýr (žervé)', per: 100, defaultGrams: 30, kcal: 250, protein_g: 7, carbs_g: 3, fat_g: 23, category: 'mlecne', tags: ['kremovy', 'syr', 'zerve'] },
+  { id: 'ricotta', name: 'Ricotta', per: 100, defaultGrams: 100, kcal: 174, protein_g: 11, carbs_g: 3, fat_g: 13, category: 'mlecne', tags: ['ricotta'] },
+  { id: 'ketchup', name: 'Ketchup', per: 100, defaultGrams: 20, kcal: 100, protein_g: 1.5, carbs_g: 25, fat_g: 0.1, category: 'jine', tags: ['kecup', 'rajcatovy'] },
+  { id: 'majoneza', name: 'Majonéza', per: 100, defaultGrams: 15, kcal: 680, protein_g: 1.2, carbs_g: 3, fat_g: 74, category: 'jine', tags: ['majka', 'mayo'] },
+  { id: 'majoneza-light', name: 'Majonéza light', per: 100, defaultGrams: 20, kcal: 330, protein_g: 1, carbs_g: 8, fat_g: 33, category: 'jine', tags: ['majka', 'mayo', 'light'] },
+  { id: 'horcice', name: 'Hořčice', per: 100, defaultGrams: 10, kcal: 70, protein_g: 4, carbs_g: 5, fat_g: 4, category: 'jine', tags: ['mustard', 'dijon'] },
+  { id: 'tatarka', name: 'Tatarská omáčka', per: 100, defaultGrams: 30, kcal: 450, protein_g: 1.5, carbs_g: 5, fat_g: 47, category: 'jine', tags: ['tatarka', 'tatar'] },
+  { id: 'sojova-omacka', name: 'Sójová omáčka', per: 100, defaultGrams: 15, kcal: 53, protein_g: 8, carbs_g: 5, fat_g: 0, category: 'jine', tags: ['sojova', 'soy sauce', 'tamari'] },
+  { id: 'sriracha', name: 'Sriracha', per: 100, defaultGrams: 10, kcal: 93, protein_g: 1.8, carbs_g: 18, fat_g: 2, category: 'jine', tags: ['sriracha', 'chili', 'omacka'] },
+  { id: 'pesto', name: 'Pesto bazalkové', per: 100, defaultGrams: 30, kcal: 460, protein_g: 6, carbs_g: 3, fat_g: 47, category: 'jine', tags: ['pesto'] },
+  { id: 'rajcatova-passata', name: 'Rajčatová passata', per: 100, defaultGrams: 100, kcal: 32, protein_g: 1.6, carbs_g: 5, fat_g: 0.3, category: 'jine', tags: ['passata', 'rajcata', 'paradajky'] },
+  { id: 'pomazankove-maslo', name: 'Pomazánkové máslo', per: 100, defaultGrams: 30, kcal: 235, protein_g: 8, carbs_g: 3, fat_g: 21, category: 'mlecne', tags: ['pomazankove'] },
+  { id: 'olej-slunec', name: 'Slunečnicový olej', per: 100, defaultGrams: 10, kcal: 884, protein_g: 0, carbs_g: 0, fat_g: 100, category: 'jine', tags: ['slunecnicovy', 'olej'] },
+  { id: 'olej-repkovy', name: 'Řepkový olej', per: 100, defaultGrams: 10, kcal: 884, protein_g: 0, carbs_g: 0, fat_g: 100, category: 'jine', tags: ['repkovy', 'olej', 'canola'] },
+  { id: 'cukr', name: 'Cukr bílý', per: 100, defaultGrams: 10, kcal: 387, protein_g: 0, carbs_g: 100, fat_g: 0, category: 'jine', tags: ['cukr', 'kristal'] },
+  { id: 'cukr-trstin', name: 'Třtinový cukr', per: 100, defaultGrams: 10, kcal: 380, protein_g: 0, carbs_g: 98, fat_g: 0, category: 'jine', tags: ['trstinovy', 'cukr'] },
+  { id: 'stevia', name: 'Stévie (sladidlo)', per: 100, defaultGrams: 1, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, category: 'jine', tags: ['stevia', 'sladidlo'] },
+
+  // OBILNINY, MOUKY, LUŠTĚNINY
+  { id: 'ryze-hneda', name: 'Rýže hnědá vařená', per: 100, defaultGrams: 200, kcal: 111, protein_g: 2.6, carbs_g: 23, fat_g: 0.9, category: 'priloha', tags: ['hneda', 'celozrnna', 'brown rice'] },
+  { id: 'testoviny-celozrn', name: 'Těstoviny celozrnné vařené', per: 100, defaultGrams: 200, kcal: 148, protein_g: 5.5, carbs_g: 28, fat_g: 1.1, category: 'priloha', tags: ['celozrnne', 'testoviny', 'whole grain'] },
+  { id: 'pohanka', name: 'Pohanka vařená', per: 100, defaultGrams: 200, kcal: 92, protein_g: 3.4, carbs_g: 20, fat_g: 0.6, category: 'priloha', tags: ['pohanka', 'buckwheat'] },
+  { id: 'proso', name: 'Proso / Jáhly vařené', per: 100, defaultGrams: 200, kcal: 119, protein_g: 3.5, carbs_g: 23, fat_g: 1, category: 'priloha', tags: ['jáhly', 'proso', 'millet'] },
+  { id: 'ovesne-otruby', name: 'Ovesné otruby', per: 100, defaultGrams: 30, kcal: 246, protein_g: 17, carbs_g: 66, fat_g: 7, category: 'priloha', tags: ['otruby', 'bran'] },
+  { id: 'granola', name: 'Granola', per: 100, defaultGrams: 60, kcal: 430, protein_g: 8, carbs_g: 64, fat_g: 16, category: 'snack', tags: ['granola', 'cerealie'] },
+  { id: 'cornflakes', name: 'Cornflakes', per: 100, defaultGrams: 50, kcal: 372, protein_g: 7.5, carbs_g: 84, fat_g: 0.9, category: 'snack', tags: ['kukuricne', 'vlocky', 'cerealie'] },
+  { id: 'cocka-cervena', name: 'Čočka červená vařená', per: 100, defaultGrams: 200, kcal: 116, protein_g: 9, carbs_g: 20, fat_g: 0.4, category: 'priloha', tags: ['cervena', 'cocka', 'lustenina'] },
+  { id: 'cocka-zelena', name: 'Čočka zelená vařená', per: 100, defaultGrams: 200, kcal: 116, protein_g: 9, carbs_g: 20, fat_g: 0.4, category: 'priloha', tags: ['zelena', 'cocka', 'lustenina'] },
+  { id: 'cizrna', name: 'Cizrna vařená', per: 100, defaultGrams: 150, kcal: 164, protein_g: 9, carbs_g: 27, fat_g: 2.6, category: 'priloha', tags: ['cizrna', 'chickpea', 'garbanzo'] },
+  { id: 'fazole-cervene', name: 'Fazole červené vařené', per: 100, defaultGrams: 150, kcal: 127, protein_g: 8.7, carbs_g: 23, fat_g: 0.5, category: 'priloha', tags: ['fazole', 'kidney', 'lustenina'] },
+  { id: 'fazole-bile', name: 'Fazole bílé vařené', per: 100, defaultGrams: 150, kcal: 139, protein_g: 10, carbs_g: 25, fat_g: 0.4, category: 'priloha', tags: ['fazole', 'bile', 'lustenina'] },
+  { id: 'edamame', name: 'Edamame (sójové boby)', per: 100, defaultGrams: 150, kcal: 121, protein_g: 11, carbs_g: 10, fat_g: 5, category: 'priloha', tags: ['edamame', 'soja', 'sojove'] },
+  { id: 'mouka-bila', name: 'Mouka pšeničná bílá', per: 100, defaultGrams: 50, kcal: 364, protein_g: 10, carbs_g: 76, fat_g: 1, category: 'jine', tags: ['mouka', 'psenicna'] },
+  { id: 'mouka-cela', name: 'Mouka celozrnná', per: 100, defaultGrams: 50, kcal: 339, protein_g: 13, carbs_g: 72, fat_g: 2, category: 'jine', tags: ['mouka', 'celozrnna'] },
+
+  // SEMÍNKA
+  { id: 'chia', name: 'Chia semínka', per: 100, defaultGrams: 15, kcal: 486, protein_g: 17, carbs_g: 42, fat_g: 31, category: 'jine', tags: ['chia', 'seminko'] },
+  { id: 'lnen', name: 'Lněná semínka', per: 100, defaultGrams: 15, kcal: 534, protein_g: 18, carbs_g: 29, fat_g: 42, category: 'jine', tags: ['len', 'lnen', 'flax'] },
+  { id: 'dyne-seminko', name: 'Dýňová semínka', per: 100, defaultGrams: 20, kcal: 559, protein_g: 30, carbs_g: 11, fat_g: 49, category: 'snack', tags: ['dyne', 'seminko', 'pumpkin'] },
+  { id: 'slunec-seminko', name: 'Slunečnicová semínka', per: 100, defaultGrams: 20, kcal: 584, protein_g: 21, carbs_g: 20, fat_g: 51, category: 'snack', tags: ['slunecnice', 'seminko'] },
+  { id: 'sezam', name: 'Sezamová semínka', per: 100, defaultGrams: 10, kcal: 573, protein_g: 17, carbs_g: 23, fat_g: 50, category: 'jine', tags: ['sezam', 'sesame'] },
+  { id: 'tahini', name: 'Tahini (sezamová pasta)', per: 100, defaultGrams: 20, kcal: 595, protein_g: 17, carbs_g: 21, fat_g: 53, category: 'jine', tags: ['tahini', 'sezam'] },
+  { id: 'konopna', name: 'Konopná semínka', per: 100, defaultGrams: 15, kcal: 553, protein_g: 31, carbs_g: 9, fat_g: 49, category: 'jine', tags: ['konopna', 'hemp'] },
+
+  // ZELENINA (rozšíření)
+  { id: 'bataty', name: 'Sladké brambory (batáty)', per: 100, defaultGrams: 150, kcal: 86, protein_g: 1.6, carbs_g: 20, fat_g: 0.1, category: 'priloha', tags: ['bataty', 'sladke', 'brambory', 'sweet potato'] },
+  { id: 'dyne', name: 'Dýně hokaido / máslová', per: 100, defaultGrams: 150, kcal: 45, protein_g: 1.4, carbs_g: 12, fat_g: 0.2, category: 'zelenina', tags: ['dyne', 'squash', 'hokaido'] },
+  { id: 'chrest', name: 'Chřest', per: 100, defaultGrams: 100, kcal: 20, protein_g: 2.2, carbs_g: 3.9, fat_g: 0.1, category: 'zelenina', tags: ['chrest', 'asparagus'] },
+  { id: 'porek', name: 'Pór (pórůvka)', per: 100, defaultGrams: 80, kcal: 31, protein_g: 1.8, carbs_g: 7, fat_g: 0.3, category: 'zelenina', tags: ['porek', 'por', 'leek'] },
+  { id: 'kapusta', name: 'Kapusta / Kadeřávek', per: 100, defaultGrams: 100, kcal: 49, protein_g: 4.3, carbs_g: 9, fat_g: 0.9, category: 'zelenina', tags: ['kapusta', 'kaderávek', 'kale'] },
+  { id: 'rucola', name: 'Rukola', per: 100, defaultGrams: 50, kcal: 25, protein_g: 2.6, carbs_g: 3.7, fat_g: 0.7, category: 'zelenina', tags: ['rucola', 'rukola', 'arugula'] },
+  { id: 'mangold', name: 'Mangold', per: 100, defaultGrams: 100, kcal: 19, protein_g: 1.8, carbs_g: 3.7, fat_g: 0.2, category: 'zelenina', tags: ['mangold', 'chard'] },
+  { id: 'hrach-mrazeny', name: 'Hrách mražený', per: 100, defaultGrams: 100, kcal: 81, protein_g: 5.4, carbs_g: 14, fat_g: 0.4, category: 'zelenina', tags: ['hrach', 'peas'] },
+  { id: 'papricky-jalapeno', name: 'Jalapeño papričky', per: 100, defaultGrams: 20, kcal: 29, protein_g: 0.9, carbs_g: 6, fat_g: 0.4, category: 'zelenina', tags: ['jalapeno', 'chili', 'papricka'] },
+  { id: 'zeli-kysel', name: 'Zelí kyselé (kysané)', per: 100, defaultGrams: 100, kcal: 19, protein_g: 0.9, carbs_g: 4, fat_g: 0.1, category: 'zelenina', tags: ['zeli', 'kysele', 'sauerkraut'] },
+  { id: 'rajcata-cherry', name: 'Rajčata cherry', per: 100, defaultGrams: 100, kcal: 18, protein_g: 0.9, carbs_g: 3.9, fat_g: 0.2, category: 'zelenina', tags: ['cherry', 'rajce', 'cherry tomatoes'] },
+  { id: 'paprika-zelena', name: 'Paprika zelená', per: 100, defaultGrams: 100, kcal: 20, protein_g: 0.9, carbs_g: 4.6, fat_g: 0.2, category: 'zelenina', tags: ['paprika', 'zelena'] },
+  { id: 'paprika-oranz', name: 'Paprika oranžová / žlutá', per: 100, defaultGrams: 100, kcal: 27, protein_g: 1, carbs_g: 6.3, fat_g: 0.2, category: 'zelenina', tags: ['paprika', 'oranzova', 'zluta'] },
+  { id: 'repa', name: 'Červená řepa vařená', per: 100, defaultGrams: 100, kcal: 44, protein_g: 1.7, carbs_g: 10, fat_g: 0.2, category: 'zelenina', tags: ['repa', 'cervena', 'beet'] },
+  { id: 'pasternak', name: 'Pastinák', per: 100, defaultGrams: 100, kcal: 75, protein_g: 1.2, carbs_g: 18, fat_g: 0.3, category: 'zelenina', tags: ['pasternak', 'parsnip'] },
+  { id: 'houby-zampiony', name: 'Žampióny čerstvé', per: 100, defaultGrams: 100, kcal: 22, protein_g: 3.1, carbs_g: 3.3, fat_g: 0.3, category: 'zelenina', tags: ['houby', 'zampiony', 'mushrooms'] },
+  { id: 'houby-hliva', name: 'Hlíva ústřičná', per: 100, defaultGrams: 100, kcal: 33, protein_g: 3.3, carbs_g: 6.1, fat_g: 0.4, category: 'zelenina', tags: ['hliva', 'houby', 'oyster mushroom'] },
+  { id: 'houby-suse', name: 'Sušené houby (hřiby)', per: 100, defaultGrams: 10, kcal: 284, protein_g: 33, carbs_g: 58, fat_g: 3, category: 'zelenina', tags: ['suse', 'hřiby', 'houby'] },
+
+  // OVOCE (rozšíření)
+  { id: 'fige', name: 'Fíky čerstvé', per: 100, defaultGrams: 50, kcal: 74, protein_g: 0.8, carbs_g: 19, fat_g: 0.3, category: 'ovoce', pieceGrams: 50, pieceLabel: 'fík' },
+  { id: 'fige-suse', name: 'Fíky sušené', per: 100, defaultGrams: 30, kcal: 249, protein_g: 3.3, carbs_g: 64, fat_g: 0.9, category: 'ovoce', tags: ['suse', 'fige'] },
+  { id: 'kokos-duzina', name: 'Kokos (dužina)', per: 100, defaultGrams: 50, kcal: 354, protein_g: 3.3, carbs_g: 15, fat_g: 33, category: 'ovoce', tags: ['kokos', 'coconut'] },
+  { id: 'kokos-mleko', name: 'Kokosové mléko (konzervované)', per: 100, defaultGrams: 100, kcal: 197, protein_g: 2, carbs_g: 6, fat_g: 21, category: 'napoj', tags: ['kokos', 'mleko', 'coconut milk'] },
+  { id: 'granate-jablko', name: 'Granátové jablko', per: 100, defaultGrams: 150, kcal: 83, protein_g: 1.7, carbs_g: 19, fat_g: 1.2, category: 'ovoce', tags: ['granatove', 'pomegranate'] },
+  { id: 'papaya', name: 'Papája', per: 100, defaultGrams: 150, kcal: 43, protein_g: 0.5, carbs_g: 11, fat_g: 0.3, category: 'ovoce', tags: ['papaya'] },
+  { id: 'guava', name: 'Guava', per: 100, defaultGrams: 100, kcal: 68, protein_g: 2.6, carbs_g: 14, fat_g: 1, category: 'ovoce', tags: ['guava'] },
+  { id: 'limetka', name: 'Limetka', per: 100, defaultGrams: 60, kcal: 30, protein_g: 0.7, carbs_g: 11, fat_g: 0.2, category: 'ovoce', pieceGrams: 60, pieceLabel: 'limetka' },
+  { id: 'citron', name: 'Citron', per: 100, defaultGrams: 80, kcal: 29, protein_g: 1.1, carbs_g: 9, fat_g: 0.3, category: 'ovoce', pieceGrams: 80, pieceLabel: 'citron' },
+  { id: 'grapefruit', name: 'Grapefruit', per: 100, defaultGrams: 200, kcal: 42, protein_g: 0.8, carbs_g: 11, fat_g: 0.1, category: 'ovoce', pieceGrams: 200, pieceLabel: 'grapefruit' },
+  { id: 'ceresen', name: 'Třešně / Višně', per: 100, defaultGrams: 100, kcal: 63, protein_g: 1, carbs_g: 16, fat_g: 0.2, category: 'ovoce', tags: ['tresin', 'visne', 'ceresen'] },
+  { id: 'brusinka', name: 'Brusinky', per: 100, defaultGrams: 100, kcal: 46, protein_g: 0.4, carbs_g: 12, fat_g: 0.1, category: 'ovoce', tags: ['brusinka', 'cranberry'] },
+  { id: 'ostružina', name: 'Ostružiny', per: 100, defaultGrams: 100, kcal: 43, protein_g: 1.4, carbs_g: 10, fat_g: 0.5, category: 'ovoce', tags: ['ostruzina', 'blackberry'] },
+
+  // RYBY — rozšíření
+  { id: 'sardinka-olej', name: 'Sardinky v oleji (konzerva)', per: 100, defaultGrams: 100, kcal: 208, protein_g: 25, carbs_g: 0, fat_g: 11, category: 'maso', tags: ['sardinka', 'ryba', 'konzerva'] },
+  { id: 'sardinka-rajce', name: 'Sardinky v rajčatové omáčce', per: 100, defaultGrams: 100, kcal: 165, protein_g: 19, carbs_g: 3, fat_g: 9, category: 'maso', tags: ['sardinka', 'ryba', 'konzerva'] },
+  { id: 'makrela-uzena', name: 'Makrela uzená', per: 100, defaultGrams: 100, kcal: 305, protein_g: 18, carbs_g: 0, fat_g: 26, category: 'maso', tags: ['makrela', 'uzena', 'ryba'] },
+  { id: 'makrela-konz', name: 'Makrela v oleji (konzerva)', per: 100, defaultGrams: 100, kcal: 220, protein_g: 19, carbs_g: 0, fat_g: 15, category: 'maso', tags: ['makrela', 'ryba', 'konzerva'] },
+  { id: 'tunak-steik', name: 'Tuňák steik (čerstvý/mražený)', per: 100, defaultGrams: 150, kcal: 144, protein_g: 30, carbs_g: 0, fat_g: 1.3, category: 'maso', tags: ['tunak', 'steik', 'ryba'] },
+  { id: 'pstruh', name: 'Pstruh duhový (pečený)', per: 100, defaultGrams: 150, kcal: 190, protein_g: 22, carbs_g: 0, fat_g: 11, category: 'maso', tags: ['pstruh', 'ryba'] },
+  { id: 'kapr-peceny', name: 'Kapr pečený', per: 100, defaultGrams: 150, kcal: 162, protein_g: 18, carbs_g: 0, fat_g: 9, category: 'maso', tags: ['kapr', 'ryba'] },
+  { id: 'kapr-smazeny', name: 'Kapr smažený', per: 100, defaultGrams: 150, kcal: 265, protein_g: 20, carbs_g: 12, fat_g: 15, category: 'maso', tags: ['kapr', 'ryba', 'smazeny'] },
+  { id: 'chobotnice', name: 'Chobotnice', per: 100, defaultGrams: 100, kcal: 82, protein_g: 15, carbs_g: 2.2, fat_g: 1, category: 'maso', tags: ['chobotnice', 'octopus'] },
+  { id: 'kalmary', name: 'Kalamáry (smažené)', per: 100, defaultGrams: 150, kcal: 175, protein_g: 18, carbs_g: 8, fat_g: 8, category: 'maso', tags: ['kalamary', 'squid'] },
+
+  // MASO — rozšíření
+  { id: 'biftek-steak', name: 'Hovězí steak (medium)', per: 100, defaultGrams: 200, kcal: 215, protein_g: 26, carbs_g: 0, fat_g: 12, category: 'maso', tags: ['steak', 'biftek', 'hovezi'] },
+  { id: 'jehne', name: 'Jehněčí (pečené)', per: 100, defaultGrams: 150, kcal: 294, protein_g: 25, carbs_g: 0, fat_g: 21, category: 'maso', tags: ['jehne', 'lamb'] },
+  { id: 'zver-jeleni', name: 'Jelení maso (pečené)', per: 100, defaultGrams: 150, kcal: 187, protein_g: 30, carbs_g: 0, fat_g: 7, category: 'maso', tags: ['jeleni', 'zverina'] },
+  { id: 'uzene-koleno', name: 'Uzené koleno', per: 100, defaultGrams: 250, kcal: 280, protein_g: 22, carbs_g: 2, fat_g: 21, category: 'maso', tags: ['uzene', 'koleno'] },
+  { id: 'jatra-kureci', name: 'Kuřecí játra', per: 100, defaultGrams: 150, kcal: 172, protein_g: 26, carbs_g: 1, fat_g: 7, category: 'maso', tags: ['jatra', 'kureci'] },
+  { id: 'jatra-hovezi', name: 'Hovězí játra', per: 100, defaultGrams: 120, kcal: 175, protein_g: 26, carbs_g: 4, fat_g: 5, category: 'maso', tags: ['jatra', 'hovezi'] },
+  { id: 'seitan', name: 'Seitan (pšeničný protein)', per: 100, defaultGrams: 100, kcal: 370, protein_g: 75, carbs_g: 14, fat_g: 2, category: 'jine', tags: ['seitan', 'vegan', 'protein'] },
+
+  // PEČIVO — rozšíření
+  { id: 'chleb-kvasky', name: 'Chléb kváskový', per: 100, defaultGrams: 60, kcal: 230, protein_g: 7.5, carbs_g: 45, fat_g: 1.5, category: 'pecivo', tags: ['kvasky', 'kvasek', 'sourdough'], pieceGrams: 60, pieceLabel: 'krajíc' },
+  { id: 'chleb-cela', name: 'Chléb celozrnný', per: 100, defaultGrams: 50, kcal: 220, protein_g: 8, carbs_g: 42, fat_g: 2.5, category: 'pecivo', tags: ['celozrnny'], pieceGrams: 50, pieceLabel: 'krajíc' },
+  { id: 'chleb-graham', name: 'Grahamový chléb', per: 100, defaultGrams: 50, kcal: 240, protein_g: 8, carbs_g: 44, fat_g: 2, category: 'pecivo', tags: ['graham'], pieceGrams: 50, pieceLabel: 'krajíc' },
+  { id: 'toast-celozrn', name: 'Toustový chléb celozrnný', per: 100, defaultGrams: 30, kcal: 245, protein_g: 9, carbs_g: 44, fat_g: 4, category: 'pecivo', tags: ['toustovy', 'celozrnny'], pieceGrams: 30, pieceLabel: 'plátek' },
+  { id: 'wrap-cely', name: 'Tortilla celozrnná', per: 100, defaultGrams: 60, kcal: 280, protein_g: 9, carbs_g: 46, fat_g: 6, category: 'pecivo', tags: ['tortilla', 'wrap', 'celozrnna'] },
+  { id: 'ryzkousky', name: 'Rýžové chlebíčky', per: 100, defaultGrams: 9, kcal: 387, protein_g: 8, carbs_g: 81, fat_g: 3, category: 'snack', tags: ['ryzove', 'chlebicky', 'rice cakes'], pieceGrams: 9, pieceLabel: 'chlebíček' },
+
+  // ČESKÁ KLASIKA — doplnění
+  { id: 'smitane-pomazanka', name: 'Pomazánka (syrečková, vajíčková...)', per: 100, defaultGrams: 40, kcal: 185, protein_g: 9, carbs_g: 3, fat_g: 16, category: 'jine', tags: ['pomazanka', 'syreckova'] },
+  { id: 'oblozen-chlebicky', name: 'Obložené chlebíčky (1 ks)', per: 100, defaultGrams: 90, kcal: 210, protein_g: 8, carbs_g: 22, fat_g: 10, category: 'jine', tags: ['oblozene', 'chlebicek'], pieceGrams: 90, pieceLabel: 'chlebíček' },
+  { id: 'pribinacek', name: 'Pribináček', per: 100, defaultGrams: 75, kcal: 120, protein_g: 5.5, carbs_g: 12, fat_g: 5.5, category: 'mlecne', tags: ['pribinacek'] },
+  { id: 'activia', name: 'Activia jogurt', per: 100, defaultGrams: 125, kcal: 75, protein_g: 3.4, carbs_g: 9, fat_g: 2.5, category: 'mlecne', tags: ['activia', 'danone', 'jogurt'] },
+  { id: 'zivotabudic', name: 'Jogurt Živa / Jihočeský (bílý)', per: 100, defaultGrams: 200, kcal: 58, protein_g: 4, carbs_g: 5, fat_g: 2.5, category: 'mlecne', tags: ['jihocesky', 'bily', 'jogurt'] },
+  { id: 'syreck', name: 'Syrečky / Olomoucké tvarůžky', per: 100, defaultGrams: 50, kcal: 105, protein_g: 22, carbs_g: 0.5, fat_g: 1.5, category: 'mlecne', tags: ['syreck', 'tvaruzky', 'olomoucke'] },
+  { id: 'zmrzlina-kopecek', name: 'Zmrzlina (kopeček)', per: 100, defaultGrams: 70, kcal: 200, protein_g: 3.5, carbs_g: 27, fat_g: 9, category: 'snack', tags: ['zmrzlina', 'ice cream'], pieceGrams: 70, pieceLabel: 'kopeček' },
+  { id: 'zmrzlina-eskimo', name: 'Eskimo / Magnum zmrzlina na tyčce', per: 100, defaultGrams: 110, kcal: 285, protein_g: 3, carbs_g: 28, fat_g: 18, category: 'snack', tags: ['eskimo', 'magnum', 'zmrzlina'], pieceGrams: 110, pieceLabel: 'ks' },
+
+  // NÁPOJE — rozšíření
+  { id: 'protein-shake-mleko', name: 'Proteinový shake s mlékem', per: 100, defaultGrams: 400, kcal: 82, protein_g: 10, carbs_g: 7, fat_g: 2, category: 'napoj', tags: ['protein', 'shake', 'mleko'] },
+  { id: 'protein-shake-voda', name: 'Proteinový shake s vodou', per: 100, defaultGrams: 350, kcal: 40, protein_g: 8, carbs_g: 2, fat_g: 0.5, category: 'napoj', tags: ['protein', 'shake', 'voda'] },
+  { id: 'smoothie-ovoce', name: 'Ovocné smoothie (domácí)', per: 100, defaultGrams: 350, kcal: 65, protein_g: 1.2, carbs_g: 15, fat_g: 0.4, category: 'napoj', tags: ['smoothie', 'ovoce'] },
+  { id: 'zeleninove-smoothie', name: 'Zeleninové smoothie (green)', per: 100, defaultGrams: 350, kcal: 35, protein_g: 1.5, carbs_g: 7, fat_g: 0.4, category: 'napoj', tags: ['smoothie', 'zelenina', 'green'] },
+  { id: 'kava-frape', name: 'Frappé ledová káva', per: 100, defaultGrams: 300, kcal: 55, protein_g: 1.5, carbs_g: 7, fat_g: 2, category: 'napoj', tags: ['frape', 'ledova', 'kava'] },
+  { id: 'kava-flat-white', name: 'Flat White', per: 100, defaultGrams: 200, kcal: 68, protein_g: 4, carbs_g: 5.5, fat_g: 3, category: 'napoj', tags: ['flat white', 'kava'] },
+  { id: 'energeticky-napoj', name: 'Energetický nápoj (Monster, Rockstar)', per: 100, defaultGrams: 500, kcal: 45, protein_g: 0, carbs_g: 11, fat_g: 0, category: 'napoj', tags: ['energy', 'monster', 'rockstar'] },
+  { id: 'iso-drink', name: 'Iontový nápoj (Isostar, Powerade)', per: 100, defaultGrams: 500, kcal: 27, protein_g: 0, carbs_g: 6, fat_g: 0, category: 'napoj', tags: ['iontak', 'isostar', 'powerade', 'iso'] },
+  { id: 'tonic', name: 'Tonic water', per: 100, defaultGrams: 200, kcal: 35, protein_g: 0, carbs_g: 8.8, fat_g: 0, category: 'napoj', tags: ['tonic'] },
+
+  // RŮZNÉ
+  { id: 'vejce-krepel', name: 'Křepelčí vejce', per: 100, defaultGrams: 10, kcal: 158, protein_g: 13, carbs_g: 0.4, fat_g: 11, category: 'jine', tags: ['krepelci', 'vejce'], pieceGrams: 10, pieceLabel: 'vejce' },
+  { id: 'pancake-protein', name: 'Proteinové lívance / pancakes', per: 100, defaultGrams: 200, kcal: 180, protein_g: 15, carbs_g: 20, fat_g: 4, category: 'jine', tags: ['protein', 'pancakes', 'livance', 'palacinky'] },
+  { id: 'gyros', name: 'Gyros s tzatziki', per: 100, defaultGrams: 350, kcal: 215, protein_g: 14, carbs_g: 16, fat_g: 10, category: 'hlavni', tags: ['gyros', 'recky'] },
+  { id: 'tacos', name: 'Tacos kuřecí (2 ks)', per: 100, defaultGrams: 200, kcal: 225, protein_g: 12, carbs_g: 22, fat_g: 9, category: 'hlavni', tags: ['tacos', 'mexicke'], pieceGrams: 100, pieceLabel: 'taco' },
+  { id: 'nachos', name: 'Nachos s dipem', per: 100, defaultGrams: 100, kcal: 490, protein_g: 7, carbs_g: 58, fat_g: 25, category: 'snack', tags: ['nachos', 'chipsy'] },
+  { id: 'poke-bowl', name: 'Poke bowl (losos / tuňák)', per: 100, defaultGrams: 400, kcal: 145, protein_g: 11, carbs_g: 18, fat_g: 4, category: 'hlavni', tags: ['poke', 'bowl'] },
+  { id: 'quinoa-salat', name: 'Quinoa salát', per: 100, defaultGrams: 300, kcal: 130, protein_g: 5, carbs_g: 20, fat_g: 4, category: 'hlavni', tags: ['quinoa', 'salat'] },
+  { id: 'greckysalat', name: 'Řecký salát', per: 100, defaultGrams: 250, kcal: 105, protein_g: 4, carbs_g: 6, fat_g: 8, category: 'hlavni', tags: ['recky', 'salat', 'feta'] },
+  { id: 'caesar-salat', name: 'Caesar salát', per: 100, defaultGrams: 250, kcal: 145, protein_g: 9, carbs_g: 7, fat_g: 10, category: 'hlavni', tags: ['caesar', 'salat'] },
 ];
 
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -424,5 +587,5 @@ export function searchLocal(query: string): FoodItem[] {
   return FOODS_DB.filter((f) => {
     const haystack = `${norm(f.name)} ${(f.tags ?? []).map(norm).join(' ')}`;
     return words.every((w) => haystack.includes(w));
-  }).slice(0, 8);
+  }).slice(0, 15);
 }
