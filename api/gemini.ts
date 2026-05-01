@@ -53,6 +53,97 @@ const IMAGE_JSON_SHAPE = `{"name":string,"grams":number,"kcal":number,"protein_g
 
 type ProviderResult = unknown;
 
+// === FEEDBACK ===
+
+interface FeedbackContext {
+  hour: number;
+  goal: string;
+  kcal: { eaten: number; target: number };
+  protein: { eaten: number; target: number };
+  carbs: { eaten: number; target: number };
+  fat: { eaten: number; target: number };
+  meals: string[];
+}
+
+const FEEDBACK_SYSTEM = `Jsi přátelský nutriční kouč aplikace Kaloriak. Napiš 1-2 věty osobního feedbacku v češtině — konkrétního, akčního, přátelského. Nezačínej "Skvěle!" ani "Výborně!". Holý text bez markdownu.`;
+
+function buildFeedbackPrompt(ctx: FeedbackContext): string {
+  const goalCz = ctx.goal === 'lose' ? 'hubnutí' : ctx.goal === 'gain' ? 'nabírání svalů' : 'udržování váhy';
+  const rem = ctx.kcal.target - ctx.kcal.eaten;
+  const remStr = rem >= 0 ? `${rem} kcal zbývá` : `${Math.abs(rem)} kcal přes cíl`;
+  const timeLabel = ctx.hour < 11 ? 'ráno' : ctx.hour < 15 ? 'dopoledne' : ctx.hour < 18 ? 'odpoledne' : ctx.hour < 21 ? 'večer' : 'pozdě večer';
+  return `Čas: ${timeLabel} (${ctx.hour}:00)\nCíl: ${goalCz}\nKalorie: ${ctx.kcal.eaten}/${ctx.kcal.target} kcal (${remStr})\nBílkoviny: ${ctx.protein.eaten}/${ctx.protein.target} g\nSacharidy: ${ctx.carbs.eaten}/${ctx.carbs.target} g\nTuky: ${ctx.fat.eaten}/${ctx.fat.target} g\nDnešní jídla: ${ctx.meals.length ? ctx.meals.join(', ') : 'žádná'}`;
+}
+
+async function geminiFeedback(ctx: FeedbackContext): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
+  const ai = new GoogleGenAI({ apiKey });
+  const res = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: [{ role: 'user', parts: [{ text: `${FEEDBACK_SYSTEM}\n\n${buildFeedbackPrompt(ctx)}` }] }],
+  });
+  return (res.text ?? '').trim();
+}
+
+async function groqFeedback(ctx: FeedbackContext): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
+  const client = new OpenAI({ apiKey, baseURL: 'https://api.groq.com/openai/v1' });
+  const res = await client.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    max_tokens: 120,
+    messages: [{ role: 'system', content: FEEDBACK_SYSTEM }, { role: 'user', content: buildFeedbackPrompt(ctx) }],
+  });
+  return (res.choices[0]?.message?.content ?? '').trim();
+}
+
+async function openAIFeedback(ctx: FeedbackContext): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
+  const client = new OpenAI({ apiKey });
+  const res = await client.chat.completions.create({
+    model: 'gpt-4o-mini',
+    max_tokens: 120,
+    messages: [{ role: 'system', content: FEEDBACK_SYSTEM }, { role: 'user', content: buildFeedbackPrompt(ctx) }],
+  });
+  return (res.choices[0]?.message?.content ?? '').trim();
+}
+
+async function claudeFeedback(ctx: FeedbackContext): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
+  const client = new Anthropic({ apiKey });
+  const res = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 120,
+    system: FEEDBACK_SYSTEM,
+    messages: [{ role: 'user', content: buildFeedbackPrompt(ctx) }],
+  });
+  return (res.content.find((b) => b.type === 'text')?.text ?? '').trim();
+}
+
+async function feedbackWithFallback(ctx: FeedbackContext): Promise<string> {
+  const providers = [
+    { name: 'gemini', fn: () => geminiFeedback(ctx) },
+    { name: 'groq',   fn: () => groqFeedback(ctx)   },
+    { name: 'openai', fn: () => openAIFeedback(ctx)  },
+    { name: 'claude', fn: () => claudeFeedback(ctx)  },
+  ];
+  const errors: string[] = [];
+  for (const p of providers) {
+    try {
+      return await p.fn();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`${p.name}: ${msg.substring(0, 80)}`);
+      if (isQuotaError(e) || msg.includes('not configured')) continue;
+      throw e;
+    }
+  }
+  throw new Error(`Všechny AI služby přetížené: ${errors.join(' | ')}`);
+}
+
 function isQuotaError(e: unknown): boolean {
   const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
   return msg.includes('429') || msg.includes('quota') || msg.includes('resource_exhausted')
@@ -202,9 +293,20 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { type, name, imageBase64, mimeType } = req.body ?? {};
-  if (type !== 'name' && type !== 'image') {
+  if (type !== 'name' && type !== 'image' && type !== 'feedback') {
     return res.status(400).json({ error: 'Neznámý typ požadavku.' });
   }
+
+  if (type === 'feedback') {
+    try {
+      const text = await feedbackWithFallback(req.body as FeedbackContext);
+      return res.status(200).json({ feedback: text });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return res.status(503).json({ error: msg });
+    }
+  }
+
   if (type === 'name' && !name) return res.status(400).json({ error: 'Chybí název jídla.' });
   if (type === 'image' && (!imageBase64 || !mimeType)) {
     return res.status(400).json({ error: 'Chybí obrázek.' });

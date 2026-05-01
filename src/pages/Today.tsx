@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../state/AppState';
 import { todayISO, formatDateLabel } from '../lib/date';
 import ProgressRing from '../components/ProgressRing';
@@ -12,6 +12,7 @@ import Avatar from '../components/Avatar';
 import EditMealSheet from '../components/EditMealSheet';
 import type { Meal, MealType } from '../types';
 import { MEAL_TYPE_META, MEAL_TYPE_ORDER, resolveMealType } from '../lib/mealType';
+import { getDailyFeedback, type FeedbackContext } from '../lib/gemini';
 import {
   DndContext, DragOverlay, PointerSensor, TouchSensor,
   useSensor, useSensors, useDroppable, useDraggable,
@@ -193,6 +194,18 @@ export default function Today() {
           servingMl={250}
           onAdd={(d) => setWater(date, waterMl + d)}
           onRemove={(d) => setWater(date, Math.max(0, waterMl - d))}
+        />
+
+        {/* AI FEEDBACK */}
+        <DailyFeedbackCard
+          date={date}
+          kcal={kcal}
+          protein={protein}
+          carbs={carbs}
+          fat={fat}
+          targets={targets}
+          meals={meals}
+          goal={profile?.goal ?? 'maintain'}
         />
 
         {/* ACTIVITIES */}
@@ -483,6 +496,99 @@ function DraggableMealRow({ meal, onEdit, onDelete }: {
         </button>
       </div>
     </div>
+  );
+}
+
+function DailyFeedbackCard({ date, kcal, protein, carbs, fat, targets, meals, goal }: {
+  date: string;
+  kcal: number; protein: number; carbs: number; fat: number;
+  targets: { kcal: number; protein_g: number; carbs_g: number; fat_g: number };
+  meals: Meal[];
+  goal: 'lose' | 'maintain' | 'gain';
+}) {
+  const cacheKey = `feedback:${date}:${meals.length}`;
+  const [text, setText] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  function buildCtx(): FeedbackContext {
+    return {
+      hour: new Date().getHours(),
+      goal,
+      kcal: { eaten: Math.round(kcal), target: targets.kcal },
+      protein: { eaten: Math.round(protein), target: targets.protein_g },
+      carbs: { eaten: Math.round(carbs), target: targets.carbs_g },
+      fat: { eaten: Math.round(fat), target: targets.fat_g },
+      meals: meals.slice(0, 8).map((m) => m.name),
+    };
+  }
+
+  async function load(force = false) {
+    if (!force) {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) { setText(cached); return; }
+    }
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    setLoading(true);
+    setError(null);
+    try {
+      const msg = await getDailyFeedback(buildCtx());
+      setText(msg);
+      sessionStorage.setItem(cacheKey, msg);
+    } catch {
+      setError('Feedback momentálně nedostupný.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (meals.length > 0) load();
+    return () => { abortRef.current?.abort(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheKey]);
+
+  if (meals.length === 0) return null;
+
+  return (
+    <section className="animate-fade-up">
+      <div className="glass rounded-3xl p-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-coral-500/5 pointer-events-none" />
+        <div className="relative flex gap-3">
+          <div className="shrink-0 w-9 h-9 rounded-2xl bg-gradient-to-br from-violet-500/25 to-coral-500/25 ring-1 ring-white/10 flex items-center justify-center text-base">
+            ✨
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-ink-mute">AI kouč</span>
+              <button
+                onClick={() => load(true)}
+                disabled={loading}
+                className="text-[11px] text-ink-mute hover:text-ink-soft active:scale-90 transition-all disabled:opacity-40 flex items-center gap-1"
+              >
+                {loading
+                  ? <span className="inline-block w-3 h-3 border-2 border-white/20 border-t-coral-400 rounded-full animate-spin" />
+                  : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                }
+                Obnovit
+              </button>
+            </div>
+            {loading && !text ? (
+              <div className="space-y-1.5 py-0.5">
+                <div className="h-3 rounded-full bg-white/8 w-full animate-pulse" />
+                <div className="h-3 rounded-full bg-white/8 w-3/4 animate-pulse" />
+              </div>
+            ) : error ? (
+              <p className="text-xs text-ink-mute italic">{error}</p>
+            ) : text ? (
+              <p className="text-sm text-ink leading-relaxed">{text}</p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

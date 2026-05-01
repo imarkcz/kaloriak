@@ -70,6 +70,21 @@ async function callProxy(body: object): Promise<unknown> {
   return json;
 }
 
+export interface FeedbackContext {
+  hour: number;
+  goal: 'lose' | 'maintain' | 'gain';
+  kcal: { eaten: number; target: number };
+  protein: { eaten: number; target: number };
+  carbs: { eaten: number; target: number };
+  fat: { eaten: number; target: number };
+  meals: string[];
+}
+
+export async function getDailyFeedback(ctx: FeedbackContext): Promise<string> {
+  const json = await callProxy({ type: 'feedback', ...ctx }) as { feedback: string };
+  return json.feedback ?? '';
+}
+
 export async function estimateFoodFromName(_apiKey: string, name: string): Promise<FoodEstimate> {
   const q = name.trim();
   if (q.length < 2) throw new Error('Příliš krátký dotaz.');
