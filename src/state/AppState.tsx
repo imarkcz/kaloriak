@@ -52,6 +52,23 @@ function stripBlobs(data: AppData): AppData {
   };
 }
 
+interface Snapshot { date: string; data: AppData; savedAt: number }
+
+function loadAllSnapshots(): Snapshot[] {
+  const out: Snapshot[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith('kaloriak:snapshot:')) continue;
+    try {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as { savedAt: number; data: AppData };
+      out.push({ date: k.replace('kaloriak:snapshot:', ''), data: parsed.data, savedAt: parsed.savedAt });
+    } catch { /* corrupt snapshot — skip */ }
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 async function loadFromFirestore(uid: string): Promise<{ docExists: boolean; data: AppData | null }> {
   try {
     const snap = await getDoc(doc(db, 'users', uid));
@@ -84,7 +101,9 @@ interface AppContextValue {
   deleteActivity: (id: string) => void;
   setWater: (date: string, ml: number) => void;
   resetAll: () => void;
-  reloadFromCloud: () => Promise<boolean>;
+  reloadFromCloud: () => Promise<{ total: number; recovered: number } | null>;
+  listSnapshots: () => { date: string; mealCount: number; savedAt: number }[];
+  restoreSnapshot: (date: string) => Promise<boolean>;
   forceUploadToCloud: () => Promise<boolean>;
 }
 
@@ -267,37 +286,103 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setData(DEFAULT);
   }, []);
 
+  // Comprehensive recovery: pulls cloud + localStorage + all daily snapshots,
+  // dedupes by ID, restores anything that's been lost from primary state.
+  // Returns total meal count and how many were recovered from snapshots.
   const reloadFromCloud = useCallback(async () => {
-    if (!userRef.current) return false;
+    if (!userRef.current) return null;
     setDataLoading(true);
     try {
-      const { docExists, data: cloud } = await loadFromFirestore(userRef.current.uid);
-      if (!docExists || !cloud) return false;
-      if (!cloud.onboarded && !cloud.profile && cloud.meals.length === 0) return false;
+      const { data: cloud } = await loadFromFirestore(userRef.current.uid);
       const local = loadLocal();
-      skipNextSync.current = true;
-      const localOnlyOnReload = local.meals.filter(
-        (m) => !new Set(cloud.meals.map((c) => c.id)).has(m.id)
-      );
-      setData({
-        ...cloud,
-        onboarded: cloud.onboarded || local.onboarded,
-        geminiApiKey: local.geminiApiKey || cloud.geminiApiKey,
-        profile: cloud.profile
-          ? { ...cloud.profile, avatarDataUrl: local.profile?.avatarDataUrl }
-          : local.profile,
-        meals: [
-          ...localOnlyOnReload,
-          ...cloud.meals.map((cm) => {
-            const lm = local.meals.find((m) => m.id === cm.id);
-            return lm ? { ...lm, ...cm, imageDataUrl: lm.imageDataUrl } : cm;
-          }),
-        ],
+      const snapshots = loadAllSnapshots();
+
+      const mealMap = new Map<string, Meal>();
+      if (cloud) cloud.meals.forEach((m) => mealMap.set(m.id, m));
+      local.meals.forEach((m) => {
+        const existing = mealMap.get(m.id);
+        mealMap.set(m.id, existing ? { ...existing, ...m } : m);
       });
-      return true;
+      const beforeRecovery = mealMap.size;
+      snapshots.forEach((snap) => {
+        snap.data.meals.forEach((m) => {
+          if (!mealMap.has(m.id)) mealMap.set(m.id, m);
+        });
+      });
+      const recovered = mealMap.size - beforeRecovery;
+      const allMeals = Array.from(mealMap.values()).sort((a, b) => b.createdAt - a.createdAt);
+
+      const actMap = new Map<string, Activity>();
+      if (cloud?.activities) cloud.activities.forEach((a) => actMap.set(a.id, a));
+      (local.activities ?? []).forEach((a) => actMap.set(a.id, a));
+      snapshots.forEach((snap) => {
+        (snap.data.activities ?? []).forEach((a) => {
+          if (!actMap.has(a.id)) actMap.set(a.id, a);
+        });
+      });
+      const allActivities = Array.from(actMap.values()).sort((a, b) => b.createdAt - a.createdAt);
+
+      const snapProfile = [...snapshots].reverse().find((s) => s.data.profile)?.data.profile ?? null;
+      const profile = cloud?.profile
+        ? { ...cloud.profile, avatarDataUrl: local.profile?.avatarDataUrl ?? cloud.profile.avatarDataUrl }
+        : local.profile ?? snapProfile;
+
+      const onboarded =
+        (cloud?.onboarded ?? false) ||
+        local.onboarded ||
+        snapshots.some((s) => s.data.onboarded);
+
+      const water = {
+        ...snapshots.reduce((acc, s) => ({ ...acc, ...(s.data.water ?? {}) }), {} as Record<string, number>),
+        ...(cloud?.water ?? {}),
+        ...(local.water ?? {}),
+      };
+
+      const merged: AppData = {
+        profile,
+        meals: allMeals,
+        activities: allActivities,
+        water,
+        geminiApiKey: local.geminiApiKey || cloud?.geminiApiKey || '',
+        onboarded,
+      };
+
+      skipNextSync.current = true;
+      setData(merged);
+      // Re-upload merged so cloud now has everything (including recovered items)
+      await saveToFirestore(userRef.current.uid, merged);
+
+      return { total: allMeals.length, recovered };
     } finally {
       setDataLoading(false);
     }
+  }, []);
+
+  const listSnapshots = useCallback(() => {
+    return loadAllSnapshots().map((s) => ({
+      date: s.date,
+      mealCount: s.data.meals.length,
+      savedAt: s.savedAt,
+    }));
+  }, []);
+
+  const restoreSnapshot = useCallback(async (date: string) => {
+    const snap = loadAllSnapshots().find((s) => s.date === date);
+    if (!snap) return false;
+    // Additive restore — merge snapshot meals INTO current state, never overwrite
+    const local = loadLocal();
+    const mealMap = new Map<string, Meal>();
+    local.meals.forEach((m) => mealMap.set(m.id, m));
+    snap.data.meals.forEach((m) => {
+      if (!mealMap.has(m.id)) mealMap.set(m.id, m);
+    });
+    const merged: AppData = {
+      ...local,
+      meals: Array.from(mealMap.values()).sort((a, b) => b.createdAt - a.createdAt),
+    };
+    setData(merged);
+    if (userRef.current) await saveToFirestore(userRef.current.uid, merged);
+    return true;
   }, []);
 
   const forceUploadToCloud = useCallback(async () => {
@@ -307,8 +392,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [data]);
 
   const value = useMemo<AppContextValue>(
-    () => ({ data, user, authLoading, dataLoading, signInWithGoogle, signOutUser, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll, reloadFromCloud, forceUploadToCloud }),
-    [data, user, authLoading, dataLoading, signInWithGoogle, signOutUser, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll, reloadFromCloud, forceUploadToCloud],
+    () => ({ data, user, authLoading, dataLoading, signInWithGoogle, signOutUser, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll, reloadFromCloud, forceUploadToCloud, listSnapshots, restoreSnapshot }),
+    [data, user, authLoading, dataLoading, signInWithGoogle, signOutUser, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll, reloadFromCloud, forceUploadToCloud, listSnapshots, restoreSnapshot],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

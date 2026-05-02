@@ -7,17 +7,23 @@ import { useNavigate } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 
 export default function Profile() {
-  const { data, user, setProfile, resetAll, signOutUser, reloadFromCloud, forceUploadToCloud } = useApp();
+  const { data, user, setProfile, resetAll, signOutUser, reloadFromCloud, forceUploadToCloud, listSnapshots, restoreSnapshot } = useApp();
   const [syncMsg, setSyncMsg] = useState('');
   const [syncing, setSyncing] = useState(false);
 
   async function handleReload() {
     setSyncing(true);
     setSyncMsg('');
-    const ok = await reloadFromCloud();
-    setSyncMsg(ok ? '✓ Data načtena z cloudu' : 'V cloudu nejsou žádná data');
+    const result = await reloadFromCloud();
+    if (!result) {
+      setSyncMsg('Musíš být přihlášen');
+    } else if (result.recovered > 0) {
+      setSyncMsg(`✓ Načteno ${result.total} jídel — ${result.recovered} obnoveno ze zálohy`);
+    } else {
+      setSyncMsg(`✓ Načteno ${result.total} jídel`);
+    }
     setSyncing(false);
-    setTimeout(() => setSyncMsg(''), 3000);
+    setTimeout(() => setSyncMsg(''), 4000);
   }
 
   async function handleUpload() {
@@ -277,6 +283,7 @@ export default function Profile() {
               <h3 className="text-sm font-bold text-ink mb-1">Cloud záloha</h3>
               <p className="text-xs text-ink-soft mb-3">
                 Tvá data jsou bezpečně uložená v Google cloudu — přežijí přeinstalaci aplikace i přechod na jiný telefon.
+                „Načíst z cloudu" zároveň prohledá i lokální denní zálohy a obnoví, co případně chybí.
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -300,6 +307,8 @@ export default function Profile() {
                 </p>
               )}
             </div>
+
+            <SnapshotRestore listSnapshots={listSnapshots} restoreSnapshot={restoreSnapshot} />
 
             <button
               onClick={signOutUser}
@@ -756,4 +765,89 @@ function Stat({ label, value, unit, color, bg }: { label: string; value: number;
       <div className="text-[10px] text-ink-mute">{unit}</div>
     </div>
   );
+}
+
+function SnapshotRestore({
+  listSnapshots,
+  restoreSnapshot,
+}: {
+  listSnapshots: () => { date: string; mealCount: number; savedAt: number }[];
+  restoreSnapshot: (date: string) => Promise<boolean>;
+}) {
+  const [snapshots, setSnapshots] = useState(() => listSnapshots());
+  const [restoringDate, setRestoringDate] = useState<string | null>(null);
+  const [msg, setMsg] = useState('');
+
+  function refresh() {
+    setSnapshots(listSnapshots());
+  }
+
+  async function handleRestore(date: string, mealCount: number) {
+    if (!window.confirm(`Obnovit ${mealCount} jídel ze zálohy z ${formatSnapDate(date)}? Stávající jídla zůstanou — přidají se jen ta, která chybí.`)) return;
+    setRestoringDate(date);
+    setMsg('');
+    const ok = await restoreSnapshot(date);
+    setMsg(ok ? '✓ Záloha obnovena' : 'Záloha nenalezena');
+    setRestoringDate(null);
+    refresh();
+    setTimeout(() => setMsg(''), 3000);
+  }
+
+  if (snapshots.length === 0) {
+    return (
+      <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-4 mt-2">
+        <h3 className="text-sm font-bold text-ink mb-1">Lokální zálohy</h3>
+        <p className="text-xs text-ink-soft">
+          Aplikace si denně ukládá lokální zálohu. Zatím nejsou k dispozici žádné — objeví se zde po prvním uložení.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-4 mt-2">
+      <h3 className="text-sm font-bold text-ink mb-1">Lokální zálohy</h3>
+      <p className="text-xs text-ink-soft mb-3">
+        Posledních 7 dnů. Klepni na zálohu pro doplnění chybějících jídel — neodstraní žádná stávající.
+      </p>
+      <div className="space-y-1.5">
+        {snapshots.slice().reverse().map((s) => (
+          <button
+            key={s.date}
+            onClick={() => handleRestore(s.date, s.mealCount)}
+            disabled={restoringDate !== null}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.03] ring-1 ring-white/5 hover:bg-white/[0.06] active:scale-[0.99] transition-all disabled:opacity-40"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="text-base leading-none">📦</span>
+              <div className="text-left">
+                <div className="text-[13px] font-semibold text-ink leading-tight">{formatSnapDate(s.date)}</div>
+                <div className="text-[10px] text-ink-mute mt-0.5 tabular-nums">{s.mealCount} jídel</div>
+              </div>
+            </div>
+            {restoringDate === s.date ? (
+              <span className="inline-block w-3.5 h-3.5 border-2 border-white/20 border-t-coral-400 rounded-full animate-spin" />
+            ) : (
+              <span className="text-[11px] font-semibold text-coral-300">Obnovit</span>
+            )}
+          </button>
+        ))}
+      </div>
+      {msg && (
+        <p className={`text-center text-xs mt-2 ${msg.startsWith('✓') ? 'text-emerald-400' : 'text-amber-400'}`}>
+          {msg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function formatSnapDate(iso: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  if (iso === today) return 'Dnes';
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (iso === yesterday) return 'Včera';
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long' });
 }
