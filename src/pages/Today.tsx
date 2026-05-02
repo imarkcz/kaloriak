@@ -19,6 +19,7 @@ import {
   useSensor, useSensors, useDroppable, useDraggable,
   type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core';
+import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 
 export default function Today() {
@@ -340,25 +341,19 @@ export default function Today() {
                   );
                 })}
               </div>
-              <DragOverlay dropAnimation={null}>
+              <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
                 {draggingId ? (() => {
                   const m = meals.find((meal) => meal.id === draggingId);
                   if (!m) return null;
                   return (
-                    <div className="flex items-center gap-2.5 px-3 py-2.5 glass rounded-2xl shadow-2xl opacity-95 ring-1 ring-coral-400/30">
-                      <svg width="11" height="15" viewBox="0 0 11 15" fill="currentColor" className="text-ink-mute/60 shrink-0">
-                        <circle cx="3.5" cy="1.5" r="1.3"/><circle cx="7.5" cy="1.5" r="1.3"/>
-                        <circle cx="3.5" cy="7.5" r="1.3"/><circle cx="7.5" cy="7.5" r="1.3"/>
-                        <circle cx="3.5" cy="13.5" r="1.3"/><circle cx="7.5" cy="13.5" r="1.3"/>
-                      </svg>
+                    <div
+                      className="flex items-center gap-2.5 px-3 py-2.5 glass rounded-2xl shadow-2xl ring-1 ring-coral-400/40"
+                      style={{ width: 220, opacity: 0.96 }}
+                    >
                       <FoodThumb src={m.imageDataUrl} alt={m.name} size="sm" category={categorize(m.name)} />
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm text-ink truncate">{m.name}</div>
-                        <div className="text-[10px] text-ink-mute">{m.grams}g</div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <span className="font-extrabold text-sm tabular-nums text-ink">{Math.round(m.kcal)}</span>
-                        <div className="text-[10px] text-ink-mute">kcal</div>
+                        <div className="text-[10px] text-ink-mute tabular-nums">{Math.round(m.kcal)} kcal</div>
                       </div>
                     </div>
                   );
