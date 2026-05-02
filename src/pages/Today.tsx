@@ -15,7 +15,7 @@ import { MEAL_TYPE_META, MEAL_TYPE_ORDER, resolveMealType } from '../lib/mealTyp
 import { categorize } from '../lib/foodCategory';
 import { getDailyFeedback, type FeedbackContext } from '../lib/gemini';
 import {
-  DndContext, DragOverlay, MouseSensor, TouchSensor,
+  DndContext, DragOverlay, PointerSensor, TouchSensor,
   useSensor, useSensors, useDroppable, useDraggable,
   type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core';
@@ -28,8 +28,11 @@ export default function Today() {
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
+  // PointerSensor handles mouse + touch + stylus via Pointer Events API.
+  // touch-action:none on the grip button ensures scroll doesn't interfere
+  // on iOS/Android. TouchSensor as fallback for older mobile browsers.
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 5 } }),
   );
 
@@ -431,9 +434,9 @@ function MacroPill({ label, value, target, gradient }: { label: string; value: n
           }}
         />
       )}
-      <div className="relative">
+      <div className="relative text-center">
         <div className="text-[10px] font-extrabold uppercase tracking-wider text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">{label}</div>
-        <div className="flex items-baseline gap-0.5 mt-1">
+        <div className="flex items-baseline justify-center gap-0.5 mt-1">
           <span className="text-xl font-extrabold tabular-nums text-ink leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">{v}</span>
           <span className="text-[10px] font-semibold text-white/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">/{target}g</span>
         </div>

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { haptic } from '../lib/haptics';
 import { useApp } from '../state/AppState';
 import type { ActivityLevel, Goal, Intensity, Sex } from '../types';
@@ -615,29 +615,61 @@ function Slider({
   onChange: (v: number) => void; decimals?: number;
 }) {
   const lastTick = useRef(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+  // On touch devices, range inputs capture scroll gestures and change values
+  // while the user is just scrolling past. Require an explicit tap to activate.
+  const [active, setActive] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function activate() {
+    setActive(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setActive(false), 4000);
+    inputRef.current?.focus();
+  }
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    // Non-passive wheel handler so we can actually prevent it
+    const onWheel = (e: WheelEvent) => { e.preventDefault(); el.blur(); setActive(false); };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
   return (
-    <label className="block">
+    <label className="block" onClick={activate}>
       <div className="flex justify-between items-baseline mb-1">
         <span className="text-sm font-medium text-ink-soft">{label}</span>
         <span className="text-sm font-bold tabular-nums text-ink">{value.toFixed(decimals)} <span className="text-xs text-ink-mute font-medium">{unit}</span></span>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => {
-          const v = Number(e.target.value);
-          onChange(v);
-          if (Math.floor(v) !== Math.floor(lastTick.current)) {
-            haptic('tick');
-            lastTick.current = v;
-          }
-        }}
-        onWheel={(e) => e.currentTarget.blur()}
-        className="w-full"
-      />
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => {
+            if (!active) return;
+            const v = Number(e.target.value);
+            onChange(v);
+            if (Math.floor(v) !== Math.floor(lastTick.current)) {
+              haptic('tick');
+              lastTick.current = v;
+            }
+          }}
+          onBlur={() => setActive(false)}
+          className="w-full"
+          style={{ pointerEvents: active ? 'auto' : 'none' }}
+        />
+        {!active && (
+          <div className="absolute inset-0 flex items-center justify-end pr-1 pointer-events-none">
+            <span className="text-[10px] text-ink-mute bg-white/5 px-2 py-0.5 rounded-full">klepni pro úpravu</span>
+          </div>
+        )}
+      </div>
     </label>
   );
 }

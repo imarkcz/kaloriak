@@ -109,11 +109,7 @@ input[type=range]::-moz-range-thumb {
     0 0 0 0.5px rgba(255,255,255,0.04);
 }
 
-/* Inner glossy highlight band — the thing that sells "real glass" */
-.glass > * {
-  position: relative;
-  z-index: 1;
-}
+/* Inner glossy highlight band — top-fade reflection, always above content */
 .glass::after {
   content: '';
   position: absolute;
@@ -121,13 +117,12 @@ input[type=range]::-moz-range-thumb {
   border-radius: inherit;
   background: linear-gradient(
     180deg,
-    rgba(255,255,255,0.14) 0%,
-    rgba(255,255,255,0.05) 18%,
-    transparent 42%,
-    transparent 100%
+    rgba(255,255,255,0.13) 0%,
+    rgba(255,255,255,0.04) 22%,
+    transparent 48%
   );
   pointer-events: none;
-  z-index: 0;
+  z-index: 2;
 }
 
 /* Scrollbar */
