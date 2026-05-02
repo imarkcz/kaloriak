@@ -130,7 +130,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
               ...localOnlyMeals,
               ...cloud.meals.map((cm) => {
                 const lm = local.meals.find((m) => m.id === cm.id);
-                return lm ? { ...cm, imageDataUrl: lm.imageDataUrl } : cm;
+                // lm fields as base so locally-set fields (mealType, etc.) survive
+                // if cloud copy is missing them; cloud then overrides; image stays local
+                return lm ? { ...lm, ...cm, imageDataUrl: lm.imageDataUrl } : cm;
               }),
             ],
           };
@@ -234,6 +236,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!cloud.onboarded && !cloud.profile && cloud.meals.length === 0) return false;
       const local = loadLocal();
       skipNextSync.current = true;
+      const localOnlyOnReload = local.meals.filter(
+        (m) => !new Set(cloud.meals.map((c) => c.id)).has(m.id)
+      );
       setData({
         ...cloud,
         onboarded: cloud.onboarded || local.onboarded,
@@ -241,10 +246,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         profile: cloud.profile
           ? { ...cloud.profile, avatarDataUrl: local.profile?.avatarDataUrl }
           : local.profile,
-        meals: cloud.meals.map((cm) => {
-          const lm = local.meals.find((m) => m.id === cm.id);
-          return lm ? { ...cm, imageDataUrl: lm.imageDataUrl } : cm;
-        }),
+        meals: [
+          ...localOnlyOnReload,
+          ...cloud.meals.map((cm) => {
+            const lm = local.meals.find((m) => m.id === cm.id);
+            return lm ? { ...lm, ...cm, imageDataUrl: lm.imageDataUrl } : cm;
+          }),
+        ],
       });
       return true;
     } finally {
