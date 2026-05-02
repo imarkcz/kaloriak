@@ -73,8 +73,9 @@ function hasCzechName(p: { product_name_cs?: string; generic_name_cs?: string })
 }
 
 // Detect names that are clearly written in a non-Czech, non-Slovak language —
-// flagged so we can demote them in the result list.
-function looksForeign(name: string): boolean {
+// flagged so we can demote them in the result list AND so AddMeal can route
+// them through AI translation before saving.
+export function looksForeign(name: string): boolean {
   const n = name.toLowerCase();
   // German umlauts / sharp s
   if (/[äöüß]/.test(n)) return true;
@@ -84,8 +85,12 @@ function looksForeign(name: string): boolean {
   if (/[őű]/.test(n)) return true;
   // Romanian / Turkish-ish
   if (/[țșâîă]/.test(n)) return true;
-  // Common foreign-only words
-  if (/\b(mit|und|für|der|die|das|ohne|aus|naturalny|polski|dla|kein|ohne)\b/.test(n)) return true;
+  // Common foreign-only function words
+  if (/\b(mit|und|für|der|die|das|ohne|aus|naturalny|polski|dla|kein)\b/.test(n)) return true;
+  // English markers — common food/marketing words that don't appear in Czech
+  if (/\b(the|with|and|for|free|low|high|sugar|salt|milk|cheese|bread|chicken|beef|pork|chocolate|vanilla|strawberry|yogurt|yoghurt|cream|fruit|fresh|organic|natural|crispy|crunchy|original|classic|flavor|flavour|sweet|salted|unsalted|whole|wheat|grain|fiber|fibre|protein|gluten|dairy|vegan|vegetarian|sliced|frozen|dried|roasted)\b/.test(n)) return true;
+  // Czech absent of any diacritics + length > 16 chars + no common Czech short words = likely English
+  // (skipped: too aggressive)
   return false;
 }
 

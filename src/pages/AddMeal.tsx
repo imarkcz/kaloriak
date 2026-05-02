@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../state/AppState';
-import { analyzeFoodImage, compressImage, estimateFoodFromName, fileToBase64, humanizeGeminiError } from '../lib/gemini';
+import { analyzeFoodImage, compressImage, estimateFoodFromName, fileToBase64, humanizeGeminiError, translateToCzech } from '../lib/gemini';
 import type { FoodAnalysis } from '../lib/gemini';
 import { todayISO } from '../lib/date';
 import { searchLocal, FOODS_DB } from '../lib/foodDb';
-import { searchOFF, lookupBarcode, type FoodSearchResult } from '../lib/foodSearch';
+import { searchOFF, lookupBarcode, looksForeign, type FoodSearchResult } from '../lib/foodSearch';
 import { categorize } from '../lib/foodCategory';
 import { recentFoodsFromMeals, searchRecent } from '../lib/recentFoods';
 import BarcodeScanner from '../components/BarcodeScanner';
@@ -220,11 +220,17 @@ export default function AddMeal() {
     setPickedGrams(f.defaultGrams);
   }
 
-  function handleSavePicked() {
+  async function handleSavePicked() {
     if (!picked) return;
     const ratio = picked.per > 0 ? pickedGrams / picked.per : 1;
+    // If OFF returned a foreign-language name (English/German/Polish), pass it
+    // through the AI translator before saving so the meal log stays Czech.
+    let displayName = picked.name;
+    if (looksForeign(displayName)) {
+      try { displayName = await translateToCzech(displayName); } catch { /* keep original */ }
+    }
     const m = {
-      name: picked.brand ? `${picked.name} (${picked.brand})` : picked.name,
+      name: picked.brand ? `${displayName} (${picked.brand})` : displayName,
       grams: pickedGrams,
       kcal: Math.round(picked.kcal * ratio),
       protein_g: +(picked.protein_g * ratio).toFixed(1),

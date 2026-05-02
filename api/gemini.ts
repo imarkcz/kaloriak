@@ -66,7 +66,34 @@ interface FeedbackContext {
   meals: string[];
 }
 
-const FEEDBACK_SYSTEM = `Jsi přátelský nutriční kouč aplikace Kaloriak. Napiš 1-2 věty osobního feedbacku v češtině — konkrétního, akčního, přátelského. Nezačínej "Skvěle!" ani "Výborně!". Holý text bez markdownu. Skloňuj DŮSLEDNĚ podle pohlaví uživatele — nikdy nemíchej rody v jedné odpovědi.`;
+const FEEDBACK_SYSTEM = `Jsi přátelský nutriční kouč aplikace Kaloriak. Píšeš spisovnou, gramaticky správnou češtinou.
+
+PRAVIDLA (DŮLEŽITÉ — porušení znamená nevalidní odpověď):
+1. Odpověz POUZE česky. Nepoužívej anglická ani jiná cizí slova (kromě zavedených: "fitness", "kcal").
+2. Pohlaví uživatele je uvedeno v promptu. Skloňuj DŮSLEDNĚ podle něj v celé odpovědi:
+   - muž: "ty jsi udělal", "byl jsi", "měl jsi", "snědl jsi", "mohl bys"
+   - žena: "ty jsi udělala", "byla jsi", "měla jsi", "snědla jsi", "mohla bys"
+3. NIKDY nemíchej rody v jedné větě.
+4. Používej jen běžnou českou slovní zásobu — žádné novotvary, žádná vymyšlená slova.
+5. Kontroluj diakritiku (čárky, háčky) na všech slovech.
+6. Délka: 1–2 věty, maximálně 30 slov.
+7. Nezačínej slovy "Skvěle!", "Výborně!", "Bravo!".
+8. Holý text — žádný markdown, žádné emoji, žádné odrážky.
+
+Příklady správné odpovědi (muž): "Jsi v pohodě na cíli, jen ti chybí trochu bílkovin — přidej k večeři tvaroh nebo vejce." / "Snědl jsi dnes hodně sacharidů — zkus k snídani místo pečiva ovesnou kaši s vejci."
+Příklady správné odpovědi (žena): "Jsi v pohodě na cíli, jen ti chybí trochu bílkovin — přidej k večeři tvaroh nebo vejce." / "Snědla jsi dnes hodně sacharidů — zkus k snídani místo pečiva ovesnou kaši s vejci."`;
+
+// Naïve regex check: catches obvious English/markdown leaks. If the model
+// produces a malformed response, the next provider in the fallback chain
+// gets a chance instead of shipping garbage to the user.
+function feedbackLooksValid(s: string): boolean {
+  if (!s || s.length < 10) return false;
+  if (s.length > 280) return false;
+  if (/[*_#`]/.test(s)) return false; // markdown
+  // English giveaways
+  if (/\b(you|your|the|with|and|for|today|great|good|nice|keep|going|protein|carbs|fats|meal|breakfast|lunch|dinner|snack|need|should|could|would|have|been|done)\b/i.test(s)) return false;
+  return true;
+}
 
 function buildFeedbackPrompt(ctx: FeedbackContext): string {
   const goalCz = ctx.goal === 'lose' ? 'hubnutí' : ctx.goal === 'gain' ? 'nabírání svalů' : 'udržování váhy';
@@ -126,16 +153,23 @@ async function claudeFeedback(ctx: FeedbackContext): Promise<string> {
 }
 
 async function feedbackWithFallback(ctx: FeedbackContext): Promise<string> {
+  // Gemini and Claude handle Czech grammar significantly better than Llama/4o-mini,
+  // so we put them at the top. Groq/OpenAI remain as fallback if quota hits.
   const providers = [
     { name: 'gemini', fn: () => geminiFeedback(ctx) },
+    { name: 'claude', fn: () => claudeFeedback(ctx) },
+    { name: 'openai', fn: () => openAIFeedback(ctx) },
     { name: 'groq',   fn: () => groqFeedback(ctx)   },
-    { name: 'openai', fn: () => openAIFeedback(ctx)  },
-    { name: 'claude', fn: () => claudeFeedback(ctx)  },
   ];
   const errors: string[] = [];
   for (const p of providers) {
     try {
-      return await p.fn();
+      const text = await p.fn();
+      if (!feedbackLooksValid(text)) {
+        errors.push(`${p.name}: invalid response: ${text.substring(0, 60)}`);
+        continue; // try next provider
+      }
+      return text;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`${p.name}: ${msg.substring(0, 80)}`);
@@ -282,6 +316,73 @@ async function claudeCall(type: 'name' | 'image', input: { name?: string; imageB
   return JSON.parse(text.replace(/^```json\s*|\s*```$/g, ''));
 }
 
+// === TRANSLATE ===
+// Translates a foreign-language food product name to natural Czech.
+// Used when an Open Food Facts result lacks a Czech name field — we don't
+// want "Chocolate Milk Pudding" appearing in a Czech meal log.
+const TRANSLATE_SYSTEM = `Přelož název potraviny do češtiny. Zachovej značku (např. "Milka", "Lidl", "Pilos"). Zbytek (popis produktu) přelož do běžné češtiny. Vrať POUZE přeložený název, žádný komentář, žádné uvozovky, max 60 znaků.
+
+Příklady:
+"Milka Chocolate Milk" → "Milka mléčná čokoláda"
+"Pilos Greek Yogurt 10%" → "Pilos řecký jogurt 10%"
+"Chef Select Crispy Chicken" → "Chef Select křupavé kuře"
+"Naturalny jogurt grecki" → "Přírodní řecký jogurt"
+"Vollmilch 3,5%" → "Plnotučné mléko 3,5 %"`;
+
+async function geminiTranslate(name: string): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
+  const ai = new GoogleGenAI({ apiKey });
+  const res = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: [{ role: 'user', parts: [{ text: `${TRANSLATE_SYSTEM}\n\nNázev: "${name}"` }] }],
+  });
+  return (res.text ?? '').trim().replace(/^["']|["']$/g, '');
+}
+
+async function claudeTranslate(name: string): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
+  const client = new Anthropic({ apiKey });
+  const res = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 80,
+    system: TRANSLATE_SYSTEM,
+    messages: [{ role: 'user', content: `Název: "${name}"` }],
+  });
+  return (res.content.find((b) => b.type === 'text')?.text ?? '').trim().replace(/^["']|["']$/g, '');
+}
+
+async function openAITranslate(name: string): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
+  const client = new OpenAI({ apiKey });
+  const res = await client.chat.completions.create({
+    model: 'gpt-4o-mini',
+    max_tokens: 80,
+    messages: [{ role: 'system', content: TRANSLATE_SYSTEM }, { role: 'user', content: `Název: "${name}"` }],
+  });
+  return (res.choices[0]?.message?.content ?? '').trim().replace(/^["']|["']$/g, '');
+}
+
+async function translateWithFallback(name: string): Promise<string> {
+  const providers = [
+    { name: 'gemini', fn: () => geminiTranslate(name) },
+    { name: 'claude', fn: () => claudeTranslate(name) },
+    { name: 'openai', fn: () => openAITranslate(name) },
+  ];
+  for (const p of providers) {
+    try {
+      const text = await p.fn();
+      if (text && text.length >= 2 && text.length <= 80) return text;
+    } catch (e) {
+      if (isQuotaError(e) || (e instanceof Error && e.message.includes('not configured'))) continue;
+      throw e;
+    }
+  }
+  throw new Error('Překlad selhal — všechny služby přetížené.');
+}
+
 // Fallback chain — try each provider in order, skip on quota errors
 const PROVIDERS = [
   { name: 'gemini', call: geminiCall },
@@ -295,7 +396,7 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { type, name, imageBase64, mimeType } = req.body ?? {};
-  if (type !== 'name' && type !== 'image' && type !== 'feedback') {
+  if (type !== 'name' && type !== 'image' && type !== 'feedback' && type !== 'translate') {
     return res.status(400).json({ error: 'Neznámý typ požadavku.' });
   }
 
@@ -303,6 +404,17 @@ export default async function handler(req: any, res: any) {
     try {
       const text = await feedbackWithFallback(req.body as FeedbackContext);
       return res.status(200).json({ feedback: text });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return res.status(503).json({ error: msg });
+    }
+  }
+
+  if (type === 'translate') {
+    if (!name) return res.status(400).json({ error: 'Chybí název pro překlad.' });
+    try {
+      const text = await translateWithFallback(name);
+      return res.status(200).json({ translated: text });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return res.status(503).json({ error: msg });

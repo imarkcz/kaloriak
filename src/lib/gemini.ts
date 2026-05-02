@@ -86,6 +86,48 @@ export async function getDailyFeedback(ctx: FeedbackContext): Promise<string> {
   return json.feedback ?? '';
 }
 
+// Translates a foreign-language food name to Czech via the AI proxy.
+// Cached in localStorage so repeated scans of the same product don't burn
+// API quota and feel instant.
+const TRANSLATE_CACHE_KEY = 'kaloriak:translate:v1';
+
+function readTranslateCache(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(TRANSLATE_CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function writeTranslateCache(cache: Record<string, string>) {
+  try {
+    // Cap at 200 entries — older entries get dropped (Map iteration order = insertion order)
+    const entries = Object.entries(cache);
+    if (entries.length > 200) {
+      const trimmed = Object.fromEntries(entries.slice(-200));
+      localStorage.setItem(TRANSLATE_CACHE_KEY, JSON.stringify(trimmed));
+    } else {
+      localStorage.setItem(TRANSLATE_CACHE_KEY, JSON.stringify(cache));
+    }
+  } catch { /* ignore quota errors */ }
+}
+
+export async function translateToCzech(name: string): Promise<string> {
+  const trimmed = name.trim();
+  if (!trimmed) return trimmed;
+  const cache = readTranslateCache();
+  if (cache[trimmed]) return cache[trimmed];
+  try {
+    const json = await callProxy({ type: 'translate', name: trimmed }) as { translated: string };
+    const out = (json.translated ?? '').trim();
+    if (!out) return trimmed; // fallback to original
+    cache[trimmed] = out;
+    writeTranslateCache(cache);
+    return out;
+  } catch {
+    return trimmed; // never block saving — original name is better than nothing
+  }
+}
+
 export async function estimateFoodFromName(_apiKey: string, name: string): Promise<FoodEstimate> {
   const q = name.trim();
   if (q.length < 2) throw new Error('Příliš krátký dotaz.');
