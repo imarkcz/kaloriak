@@ -19,7 +19,7 @@ import {
   useSensor, useSensors, useDroppable, useDraggable,
   type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core';
-import { snapCenterToCursor } from '@dnd-kit/modifiers';
+import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 
 export default function Today() {
@@ -341,7 +341,7 @@ export default function Today() {
                   );
                 })}
               </div>
-              <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
+              <DragOverlay dropAnimation={null} modifiers={[restrictToWindowEdges]}>
                 {draggingId ? (() => {
                   const m = meals.find((meal) => meal.id === draggingId);
                   if (!m) return null;
