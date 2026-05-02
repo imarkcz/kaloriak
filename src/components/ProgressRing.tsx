@@ -68,7 +68,7 @@ export default function ProgressRing({
       <div
         className="absolute inset-0 rounded-full pointer-events-none animate-ring-pulse"
         style={{
-          background: `radial-gradient(circle at 50% 55%, ${grad.mid}55 0%, transparent 62%)`,
+          background: `radial-gradient(circle at 50% 55%, ${grad.mid}cc 0%, transparent 62%)`,
           filter: 'blur(28px)',
         }}
       />

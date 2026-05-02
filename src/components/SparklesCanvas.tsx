@@ -14,9 +14,11 @@ interface Particle {
 const COLORS = [
   'rgba(249,115,102,',  // coral
   'rgba(251,113,133,',  // rose
+  'rgba(251,113,133,',  // rose (weighted)
   'rgba(167,139,250,',  // violet
+  'rgba(139,92,246,',   // deep violet
+  'rgba(251,191,36,',   // amber
   'rgba(255,255,255,',  // white
-  'rgba(255,255,255,',  // white (weighted more)
   'rgba(255,255,255,',  // white
 ];
 
@@ -24,11 +26,11 @@ function createParticle(W: number, H: number): Particle {
   return {
     x: Math.random() * W,
     y: Math.random() * H,
-    size: Math.random() * 1.6 + 0.4,
-    speedX: (Math.random() - 0.5) * 0.25,
-    speedY: (Math.random() - 0.5) * 0.25,
-    opacity: Math.random(),
-    opacitySpeed: (Math.random() * 0.008 + 0.003) * (Math.random() < 0.5 ? 1 : -1),
+    size: Math.random() * 2.0 + 0.5,
+    speedX: (Math.random() - 0.5) * 0.22,
+    speedY: (Math.random() - 0.5) * 0.22,
+    opacity: Math.random() * 0.8,
+    opacitySpeed: (Math.random() * 0.012 + 0.004) * (Math.random() < 0.5 ? 1 : -1),
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
   };
 }

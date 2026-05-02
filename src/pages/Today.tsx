@@ -126,11 +126,11 @@ export default function Today() {
         <section
           className="rounded-[32px] p-6 flex flex-col items-center animate-pop relative overflow-hidden"
           style={{
-            background: 'linear-gradient(145deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.03) 100%)',
-            backdropFilter: 'blur(32px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)',
+            background: 'linear-gradient(145deg, rgba(249,115,102,0.18) 0%, rgba(255,255,255,0.07) 45%, rgba(139,92,246,0.12) 100%)',
+            backdropFilter: 'blur(40px) saturate(240%) brightness(1.1)',
+            WebkitBackdropFilter: 'blur(40px) saturate(240%) brightness(1.1)',
+            border: '1px solid rgba(255,255,255,0.20)',
+            boxShadow: '0 12px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 80px rgba(249,115,102,0.08)',
           }}
         >
           <ProgressRing
@@ -451,7 +451,7 @@ function MealSectionHeader({ kcal, count, meta }: {
   return (
     <div className="relative overflow-hidden">
       <div className={`absolute inset-0 bg-gradient-to-r ${meta.tint}`} />
-      <div className="absolute inset-0 bg-black/30" />
+      <div className="absolute inset-0 bg-black/10" />
       <div className="relative flex items-center gap-3 px-4 py-3">
         <span className="text-xl leading-none">{meta.icon}</span>
         <span className="flex-1 font-bold text-sm text-white">{meta.label}</span>

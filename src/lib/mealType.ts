@@ -3,10 +3,10 @@ import type { MealType } from '../types';
 export const MEAL_TYPE_ORDER: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner'];
 
 export const MEAL_TYPE_META: Record<MealType, { label: string; icon: string; tint: string }> = {
-  breakfast: { label: 'Snídaně', icon: '🌅', tint: 'from-amber-500/30 to-orange-500/20' },
-  lunch:     { label: 'Oběd',    icon: '☀️', tint: 'from-yellow-500/30 to-amber-500/20' },
-  snack:     { label: 'Svačina', icon: '🥨', tint: 'from-rose-500/25 to-coral-500/20' },
-  dinner:    { label: 'Večeře',  icon: '🌙', tint: 'from-indigo-500/25 to-violet-500/20' },
+  breakfast: { label: 'Snídaně', icon: '🌅', tint: 'from-amber-500/55 to-orange-400/40' },
+  lunch:     { label: 'Oběd',    icon: '☀️', tint: 'from-yellow-400/55 to-amber-500/40' },
+  snack:     { label: 'Svačina', icon: '🥨', tint: 'from-rose-500/50 to-pink-400/40' },
+  dinner:    { label: 'Večeře',  icon: '🌙', tint: 'from-indigo-400/50 to-violet-500/40' },
 };
 
 // Default meal type from current local time. Used as initial selection when
