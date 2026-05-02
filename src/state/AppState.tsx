@@ -30,6 +30,15 @@ function loadLocal(): AppData {
 function saveLocal(data: AppData) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    // Daily snapshot for emergency recovery — keeps last 7 days of state.
+    // If anything goes wrong (merge bug, accidental delete), we can restore
+    // by reading kaloriak:snapshot:YYYY-MM-DD from localStorage.
+    const today = new Date().toISOString().slice(0, 10);
+    const snapshotKey = `kaloriak:snapshot:${today}`;
+    localStorage.setItem(snapshotKey, JSON.stringify({ savedAt: Date.now(), data }));
+    // Prune old snapshots
+    const all = Object.keys(localStorage).filter((k) => k.startsWith('kaloriak:snapshot:')).sort();
+    if (all.length > 7) all.slice(0, all.length - 7).forEach((k) => localStorage.removeItem(k));
   } catch { /* ignore */ }
 }
 
@@ -88,8 +97,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dataLoading, setDataLoading] = useState(false);
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userRef = useRef<User | null>(null);
+  const dataRef = useRef<AppData>(data);
   const skipNextSync = useRef(false);
   userRef.current = user;
+  dataRef.current = data;
 
   // Set persistence explicitly — important for iOS PWA standalone mode where
   // default IndexedDB persistence may not survive sessions.
@@ -176,11 +187,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     if (syncTimer.current) clearTimeout(syncTimer.current);
     if (userRef.current) {
+      // 500ms debounce — short enough that closing the app within the window
+      // is rare. Combined with visibilitychange/pagehide flush below, the
+      // unsynced window is effectively zero.
       syncTimer.current = setTimeout(() => {
         saveToFirestore(userRef.current!.uid, data);
-      }, 1500);
+      }, 500);
     }
   }, [data]);
+
+  // Flush any pending Firestore write when the page is hidden or unloading.
+  // Closes the gap where adding a meal then immediately backgrounding the app
+  // would leave the meal in localStorage only.
+  useEffect(() => {
+    function flush() {
+      if (syncTimer.current) {
+        clearTimeout(syncTimer.current);
+        syncTimer.current = null;
+      }
+      if (userRef.current) {
+        // Best-effort fire-and-forget — browser may kill the request mid-flight
+        // on iOS, but the SDK uses keepalive where supported.
+        saveToFirestore(userRef.current.uid, dataRef.current);
+      }
+    }
+    function onVisibility() {
+      if (document.visibilityState === 'hidden') flush();
+    }
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, []);
 
   const signInWithGoogle = useCallback(async () => {
     await signInWithPopup(auth, googleProvider);
