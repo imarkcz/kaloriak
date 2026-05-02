@@ -3,7 +3,6 @@ import { useApp } from '../state/AppState';
 import { todayISO, formatDateLabel } from '../lib/date';
 import ProgressRing from '../components/ProgressRing';
 import MacroPie, { MacroLegend } from '../components/MacroPie';
-import MealCard from '../components/MealCard';
 import FoodThumb from '../components/FoodThumb';
 import { Link } from 'react-router-dom';
 import { ACTIVITY_LABEL } from '../lib/activityKcal';
@@ -16,7 +15,7 @@ import { MEAL_TYPE_META, MEAL_TYPE_ORDER, resolveMealType } from '../lib/mealTyp
 import { categorize } from '../lib/foodCategory';
 import { getDailyFeedback, type FeedbackContext } from '../lib/gemini';
 import {
-  DndContext, DragOverlay, PointerSensor, TouchSensor,
+  DndContext, DragOverlay, MouseSensor, TouchSensor,
   useSensor, useSensors, useDroppable, useDraggable,
   type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core';
@@ -29,8 +28,8 @@ export default function Today() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 5 } }),
   );
 
   function handleDragStart({ active }: DragStartEvent) {
@@ -309,7 +308,12 @@ export default function Today() {
               </div>
             </div>
           ) : (
-            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <DndContext
+              sensors={sensors}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              autoScroll={{ threshold: { x: 0, y: 0.18 }, interval: 5 }}
+            >
               <div className="space-y-3">
                 {MEAL_TYPE_ORDER.map((type) => {
                   const items = meals.filter((m) => resolveMealType(m) === type);
@@ -337,11 +341,28 @@ export default function Today() {
                 })}
               </div>
               <DragOverlay dropAnimation={null}>
-                {draggingId ? (
-                  <div className="opacity-95 scale-[1.02] shadow-2xl rounded-3xl overflow-hidden">
-                    <MealCard meal={meals.find((m) => m.id === draggingId)!} onClick={() => {}} />
-                  </div>
-                ) : null}
+                {draggingId ? (() => {
+                  const m = meals.find((meal) => meal.id === draggingId);
+                  if (!m) return null;
+                  return (
+                    <div className="flex items-center gap-2.5 px-3 py-2.5 glass rounded-2xl shadow-2xl opacity-95 ring-1 ring-coral-400/30">
+                      <svg width="11" height="15" viewBox="0 0 11 15" fill="currentColor" className="text-ink-mute/60 shrink-0">
+                        <circle cx="3.5" cy="1.5" r="1.3"/><circle cx="7.5" cy="1.5" r="1.3"/>
+                        <circle cx="3.5" cy="7.5" r="1.3"/><circle cx="7.5" cy="7.5" r="1.3"/>
+                        <circle cx="3.5" cy="13.5" r="1.3"/><circle cx="7.5" cy="13.5" r="1.3"/>
+                      </svg>
+                      <FoodThumb src={m.imageDataUrl} alt={m.name} size="sm" category={categorize(m.name)} />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm text-ink truncate">{m.name}</div>
+                        <div className="text-[10px] text-ink-mute">{m.grams}g</div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span className="font-extrabold text-sm tabular-nums text-ink">{Math.round(m.kcal)}</span>
+                        <div className="text-[10px] text-ink-mute">kcal</div>
+                      </div>
+                    </div>
+                  );
+                })() : null}
               </DragOverlay>
             </DndContext>
           )}
@@ -479,18 +500,34 @@ function DraggableMealRow({ meal, onEdit, onDelete }: {
   onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: meal.id });
+  const wasDragging = useRef(false);
+
+  useEffect(() => {
+    if (isDragging) {
+      wasDragging.current = true;
+    } else if (wasDragging.current) {
+      const t = setTimeout(() => { wasDragging.current = false; }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [isDragging]);
 
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0 : 1 }}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        opacity: isDragging ? 0 : 1,
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+      } as React.CSSProperties}
+      onContextMenu={(e) => e.preventDefault()}
       className="flex items-center gap-2.5 px-3 py-2.5 border-t border-white/[0.05] first:border-t-0"
     >
       {/* grip */}
       <button
         {...listeners}
         {...attributes}
-        className="shrink-0 text-ink-mute/40 hover:text-ink-mute active:text-ink-soft touch-none transition-colors p-1 -m-1"
+        className="shrink-0 text-ink-mute/60 hover:text-ink-mute active:text-ink-soft touch-none transition-colors p-1 -m-1"
         tabIndex={-1}
         aria-label="Přetáhnout"
       >
@@ -505,7 +542,7 @@ function DraggableMealRow({ meal, onEdit, onDelete }: {
       <FoodThumb src={meal.imageDataUrl} alt={meal.name} size="sm" category={categorize(meal.name)} />
 
       {/* name + macros — tappable for edit */}
-      <button onClick={onEdit} className="flex-1 min-w-0 text-left">
+      <button onClick={() => { if (!wasDragging.current) onEdit(); }} className="flex-1 min-w-0 text-left">
         <div className="flex items-baseline gap-1.5 min-w-0">
           <span className="font-semibold text-sm text-ink truncate leading-snug">{meal.name}</span>
           <span className="text-[11px] text-ink-mute shrink-0">{meal.grams}g</span>
