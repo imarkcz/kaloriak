@@ -124,7 +124,7 @@ export default function Today() {
       <main className="max-w-md mx-auto px-5 space-y-4">
         {/* HERO RING */}
         <section
-          className="rounded-[32px] p-6 flex flex-col items-center animate-pop relative overflow-hidden"
+          className="glass rounded-[32px] p-6 flex flex-col items-center animate-pop"
           style={{
             background: 'linear-gradient(135deg, rgba(249,115,102,0.10) 0%, rgba(255,255,255,0.04) 50%, rgba(139,92,246,0.07) 100%)',
             backdropFilter: 'blur(56px) saturate(170%)',
