@@ -9,7 +9,6 @@ import BottomNav from './components/BottomNav';
 import LoginScreen from './components/LoginScreen';
 import UpdateBanner from './components/UpdateBanner';
 import SparklesCanvas from './components/SparklesCanvas';
-import TiltSensor from './components/TiltSensor';
 
 function Shell() {
   const { data, user, authLoading, dataLoading } = useApp();
@@ -62,7 +61,6 @@ export default function App() {
     <AppProvider>
       <BrowserRouter>
         <SparklesCanvas />
-        <TiltSensor />
         <UpdateBanner />
         <Shell />
       </BrowserRouter>

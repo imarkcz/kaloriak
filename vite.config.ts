@@ -1,10 +1,20 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import type { Plugin } from 'vite';
 
-// Inject a build timestamp so users can verify they're running the latest
-// version (visible at the bottom of the Profile screen).
 const BUILD_ID = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
+// Emits /build.txt with the current BUILD_ID so the app can verify
+// at runtime whether it's running the latest deployed version.
+function buildIdPlugin(): Plugin {
+  return {
+    name: 'build-id-file',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'build.txt', source: BUILD_ID });
+    },
+  };
+}
 
 export default defineConfig({
   define: {
@@ -12,6 +22,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    buildIdPlugin(),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.svg', 'icon.svg', 'apple-touch-icon.png'],

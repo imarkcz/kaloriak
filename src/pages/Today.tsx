@@ -126,11 +126,16 @@ export default function Today() {
         <section
           className="glass rounded-[32px] p-6 flex flex-col items-center animate-pop"
           style={{
-            background: 'linear-gradient(135deg, rgba(249,115,102,0.10) 0%, rgba(255,255,255,0.04) 50%, rgba(139,92,246,0.07) 100%)',
-            backdropFilter: 'blur(56px) saturate(170%)',
-            WebkitBackdropFilter: 'blur(56px) saturate(170%)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            boxShadow: '0 1px 0 rgba(255,255,255,0.22) inset, 0 -1px 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.6), 0 0 80px rgba(249,115,102,0.05)',
+            background: 'linear-gradient(135deg, rgba(249,115,102,0.08) 0%, rgba(255,255,255,0.02) 50%, rgba(139,92,246,0.06) 100%)',
+            backdropFilter: 'blur(48px) saturate(190%)',
+            WebkitBackdropFilter: 'blur(48px) saturate(190%)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            boxShadow:
+              '0 1px 0 rgba(255,255,255,0.35) inset,' +
+              '1px 1px 0 rgba(255,255,255,0.10) inset,' +
+              '0 -1px 0 rgba(0,0,0,0.25) inset,' +
+              '0 24px 70px -24px rgba(0,0,0,0.65),' +
+              '0 0 80px rgba(249,115,102,0.06)',
           }}
         >
           <ProgressRing

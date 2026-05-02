@@ -89,50 +89,45 @@ input[type=range]::-moz-range-thumb {
 }
 
 
-/* Liquid glass card */
+/* Liquid glass — clear, less milky, with a real glossy edge highlight */
 .glass {
   position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
-  backdrop-filter: blur(48px) saturate(180%);
-  -webkit-backdrop-filter: blur(48px) saturate(180%);
-  border: 1px solid rgba(255,255,255,0.10);
+  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+  backdrop-filter: blur(40px) saturate(190%);
+  -webkit-backdrop-filter: blur(40px) saturate(190%);
+  border: 1px solid rgba(255,255,255,0.08);
   box-shadow:
-    0 1px 0 rgba(255,255,255,0.18) inset,
-    0 -1px 0 rgba(255,255,255,0.04) inset,
-    0 12px 48px -12px rgba(0,0,0,0.5),
-    0 0 0 1px rgba(255,255,255,0.02);
+    /* sharp top edge — primary glass gloss */
+    0 1px 0 rgba(255,255,255,0.30) inset,
+    /* secondary inner highlight on the upper-left */
+    1px 1px 0 rgba(255,255,255,0.08) inset,
+    /* dark bottom-edge for depth */
+    0 -1px 0 rgba(0,0,0,0.20) inset,
+    /* deep drop shadow */
+    0 16px 50px -16px rgba(0,0,0,0.55),
+    /* outer hairline for crispness */
+    0 0 0 0.5px rgba(255,255,255,0.04);
 }
 
-/* Specular highlight driven by device gyroscope (--tilt-x / --tilt-y).
-   Falls back to centered/static when sensors unavailable. */
-.glass::before {
+/* Inner glossy highlight band — the thing that sells "real glass" */
+.glass > * {
+  position: relative;
+  z-index: 1;
+}
+.glass::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background: linear-gradient(
-    105deg,
-    transparent 36%,
-    rgba(255,255,255,0.08) 47%,
-    rgba(255,255,255,0.18) 50%,
-    rgba(255,255,255,0.08) 53%,
-    transparent 64%
-  );
-  transform: translate(
-    calc(var(--tilt-x, 0) * 70%),
-    calc(var(--tilt-y, 0) * 45%)
+    180deg,
+    rgba(255,255,255,0.14) 0%,
+    rgba(255,255,255,0.05) 18%,
+    transparent 42%,
+    transparent 100%
   );
   pointer-events: none;
-  transition: transform 110ms linear;
-  z-index: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .glass::before {
-    transform: none;
-    transition: none;
-  }
+  z-index: 0;
 }
 
 /* Scrollbar */
