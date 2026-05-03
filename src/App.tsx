@@ -8,6 +8,7 @@ import Profile from './pages/Profile';
 import BottomNav from './components/BottomNav';
 import LoginScreen from './components/LoginScreen';
 import UpdateBanner from './components/UpdateBanner';
+import SyncBanner from './components/SyncBanner';
 import SparklesCanvas from './components/SparklesCanvas';
 
 function Shell() {
@@ -62,6 +63,7 @@ export default function App() {
       <BrowserRouter>
         <SparklesCanvas />
         <UpdateBanner />
+        <SyncBanner />
         <Shell />
       </BrowserRouter>
     </AppProvider>
