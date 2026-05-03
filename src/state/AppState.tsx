@@ -75,10 +75,14 @@ function saveLocal(data: AppData): SaveLocalResult {
 // Strip heavy base64 blobs before sending to Firestore (1 MB limit per doc).
 // They stay in localStorage for local display.
 function stripBlobs(data: AppData): AppData {
+  // Use destructuring to fully omit blob fields — Firestore rejects `undefined` values
+  // and setting them to undefined causes "Unsupported field value: undefined" errors.
   return {
     ...data,
-    profile: data.profile ? { ...data.profile, avatarDataUrl: undefined } : null,
-    meals: data.meals.map((m) => ({ ...m, imageDataUrl: undefined })),
+    profile: data.profile
+      ? (({ avatarDataUrl: _a, ...rest }) => rest)(data.profile)
+      : null,
+    meals: data.meals.map(({ imageDataUrl: _i, ...m }) => m),
   };
 }
 
@@ -309,11 +313,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     function onVisibility() {
       if (document.visibilityState === 'hidden') flush();
     }
+    function onOnline() {
+      // When network returns, retry any pending sync so the error banner clears.
+      if (userRef.current) pushToCloud(dataRef.current);
+    }
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('pagehide', flush);
+    window.addEventListener('online', onOnline);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', flush);
+      window.removeEventListener('online', onOnline);
     };
   }, []);
 

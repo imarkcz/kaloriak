@@ -17,13 +17,13 @@ export default {
           800: '#9a3327',
           900: '#7c2a22',
         },
-        // Dark surfaces
-        bg: '#0a0a0b',
-        surface: '#141416',
-        'surface-2': '#1c1c20',
-        'surface-3': '#26262c',
-        border: '#2a2a30',
-        'border-soft': '#1f1f24',
+        // Dark surfaces — warm charcoal, not cold blue
+        bg: '#0d0906',
+        surface: '#161210',
+        'surface-2': '#1d1811',
+        'surface-3': '#252015',
+        border: '#2d2518',
+        'border-soft': '#211c11',
         ink: {
           DEFAULT: '#fafafa',
           soft: '#a1a1aa',
