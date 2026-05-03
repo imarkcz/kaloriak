@@ -19,22 +19,22 @@ import type { MealType } from '../types';
 
 type Mode = 'photo' | 'search' | 'manual';
 type PhotoStage = 'pick' | 'analyzing' | 'confirm' | 'error';
-type PrepMethod = 'asis' | 'airfryer' | 'oven' | 'boiled';
+type PrepMethod = 'asis' | 'airfryer' | 'pan' | 'oven' | 'boiled';
 
-// Multipliers applied to AI's fat estimate when user corrects the cooking
-// method. AI assumes the typical (often deep-fried) preparation; airfryer
-// uses ~⅓ the oil, oven baking less still, boiled/steamed almost none.
-// kcal is recomputed from removed fat (1 g fat ≈ 9 kcal) so protein/carbs
-// are unaffected.
+// Multipliers for photo mode: AI assumes typical (often pan-fried) preparation.
+// Airfryer uses ~⅓ the oil, oven less, boiled almost none, pan = no change.
+// kcal is recomputed from removed fat (1 g fat ≈ 9 kcal); protein/carbs unaffected.
 const FAT_MULT: Record<PrepMethod, number> = {
   asis: 1.0,
   airfryer: 0.6,
+  pan: 1.0,
   oven: 0.75,
   boiled: 0.4,
 };
 const PREP_LABEL: Record<PrepMethod, string> = {
-  asis: 'Bez úpravy',
+  asis: 'Jak je',
   airfryer: 'Airfryer',
+  pan: 'Na pánvičce',
   oven: 'V troubě',
   boiled: 'Vařené',
 };
@@ -79,6 +79,7 @@ export default function AddMeal() {
   const [scanError, setScanError] = useState('');
   const [estimating, setEstimating] = useState(false);
   const [estimateError, setEstimateError] = useState('');
+  const [pickedPrep, setPickedPrep] = useState<PrepMethod>('asis');
 
   // manual state
   const [mName, setMName] = useState('');
@@ -218,6 +219,7 @@ export default function AddMeal() {
   function handlePickFood(f: FoodSearchResult) {
     setPicked(f);
     setPickedGrams(f.defaultGrams);
+    setPickedPrep('asis');
   }
 
   async function handleSavePicked() {
@@ -229,8 +231,10 @@ export default function AddMeal() {
     if (looksForeign(displayName)) {
       try { displayName = await translateToCzech(displayName); } catch { /* keep original */ }
     }
+    const baseName = picked.brand ? `${displayName} (${picked.brand})` : displayName;
+    const prepSuffix = pickedPrep !== 'asis' ? ` — ${PREP_LABEL[pickedPrep].toLowerCase()}` : '';
     const m = {
-      name: picked.brand ? `${displayName} (${picked.brand})` : displayName,
+      name: baseName + prepSuffix,
       grams: pickedGrams,
       kcal: Math.round(picked.kcal * ratio),
       protein_g: +(picked.protein_g * ratio).toFixed(1),
@@ -342,6 +346,8 @@ export default function AddMeal() {
               picked={picked}
               grams={pickedGrams}
               onGramsChange={setPickedGrams}
+              prep={pickedPrep}
+              onPrepChange={setPickedPrep}
             />
             <div className="mt-3">
               <MealTypePicker value={mealType} onChange={setMealType} />
@@ -577,7 +583,7 @@ export default function AddMeal() {
                 <span className="text-sm font-medium text-ink">Způsob přípravy</span>
                 <span className="text-[10px] text-ink-mute uppercase tracking-wider">upraví tuky a kcal</span>
               </div>
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-5 gap-1">
                 {(Object.keys(PREP_LABEL) as PrepMethod[]).map((p) => (
                   <button
                     key={p}
@@ -592,7 +598,7 @@ export default function AddMeal() {
                       setPhotoFat(Math.max(0, fatNew));
                       setPhotoKcal(Math.max(0, kcalNew));
                     }}
-                    className={`px-2 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    className={`px-1 py-2 rounded-xl text-[10px] font-semibold leading-tight text-center transition-all ${
                       prep === p
                         ? 'bg-grad-coral text-white shadow-coral-soft'
                         : 'bg-white/[0.04] text-ink-soft border border-white/5'
@@ -777,7 +783,7 @@ function ResultCard({ item, onPick }: { item: FoodSearchResult; onPick: (i: Food
   );
 }
 
-function PickedConfig({ picked, grams, onGramsChange }: { picked: FoodSearchResult; grams: number; onGramsChange: (g: number) => void }) {
+function PickedConfig({ picked, grams, onGramsChange, prep, onPrepChange }: { picked: FoodSearchResult; grams: number; onGramsChange: (g: number) => void; prep: PrepMethod; onPrepChange: (p: PrepMethod) => void }) {
   const hasPieces = !!picked.pieceGrams && picked.pieceGrams > 0;
   const [unitMode, setUnitMode] = useState<'pieces' | 'grams'>(hasPieces ? 'pieces' : 'grams');
   const pg = picked.pieceGrams ?? 0;
@@ -883,6 +889,26 @@ function PickedConfig({ picked, grams, onGramsChange }: { picked: FoodSearchResu
             />
           </>
         )}
+      </div>
+
+      <div className="mt-3 glass rounded-3xl p-4">
+        <div className="text-[11px] font-bold uppercase tracking-wider text-ink-mute mb-3">Způsob přípravy</div>
+        <div className="grid grid-cols-5 gap-1">
+          {(Object.keys(PREP_LABEL) as PrepMethod[]).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => { haptic('tap'); onPrepChange(p); }}
+              className={`px-1 py-2 rounded-xl text-[10px] font-semibold leading-tight text-center transition-all ${
+                prep === p
+                  ? 'bg-grad-coral text-white shadow-coral-soft'
+                  : 'bg-white/[0.04] text-ink-soft border border-white/5'
+              }`}
+            >
+              {PREP_LABEL[p]}
+            </button>
+          ))}
+        </div>
       </div>
 
       <ScaledStats picked={picked} grams={grams} />
