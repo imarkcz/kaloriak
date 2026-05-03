@@ -492,10 +492,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...local,
       meals: Array.from(mealMap.values()).sort((a, b) => b.createdAt - a.createdAt),
     };
+    skipNextSync.current = true;
+    dataRef.current = merged;
     setData(merged);
-    if (userRef.current) await saveToFirestore(userRef.current.uid, merged);
+    if (userRef.current) await pushToCloud(merged);
     return true;
-  }, []);
+  }, [pushToCloud]);
 
   const forceUploadToCloud = useCallback(async () => {
     if (!userRef.current) return false;

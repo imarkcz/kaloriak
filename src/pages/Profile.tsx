@@ -279,36 +279,14 @@ export default function Profile() {
 
         {user && (
           <>
-            <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-4 mt-2">
-              <h3 className="text-sm font-bold text-ink mb-1">Cloud záloha</h3>
-              <p className="text-xs text-ink-soft mb-3">
-                Tvá data jsou bezpečně uložená v Google cloudu — přežijí přeinstalaci aplikace i přechod na jiný telefon.
-                „Načíst z cloudu" zároveň prohledá i lokální denní zálohy a obnoví, co případně chybí.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={handleReload}
-                  disabled={syncing}
-                  className="py-2.5 rounded-xl bg-white/5 ring-1 ring-white/10 text-ink text-xs font-semibold active:scale-95 transition-transform disabled:opacity-50"
-                >
-                  ⬇ Načíst z cloudu
-                </button>
-                <button
-                  onClick={handleUpload}
-                  disabled={syncing}
-                  className="py-2.5 rounded-xl bg-white/5 ring-1 ring-white/10 text-ink text-xs font-semibold active:scale-95 transition-transform disabled:opacity-50"
-                >
-                  ⬆ Nahrát do cloudu
-                </button>
-              </div>
-              {syncMsg && (
-                <p className={`text-center text-xs mt-2 ${syncMsg.startsWith('✓') ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {syncMsg}
-                </p>
-              )}
-            </div>
-
-            <SnapshotRestore listSnapshots={listSnapshots} restoreSnapshot={restoreSnapshot} />
+            <BackupCard
+              syncing={syncing}
+              syncMsg={syncMsg}
+              onReload={handleReload}
+              onUpload={handleUpload}
+              listSnapshots={listSnapshots}
+              restoreSnapshot={restoreSnapshot}
+            />
 
             <button
               onClick={signOutUser}
@@ -767,77 +745,111 @@ function Stat({ label, value, unit, color, bg }: { label: string; value: number;
   );
 }
 
-function SnapshotRestore({
+function BackupCard({
+  syncing,
+  syncMsg,
+  onReload,
+  onUpload,
   listSnapshots,
   restoreSnapshot,
 }: {
+  syncing: boolean;
+  syncMsg: string;
+  onReload: () => void;
+  onUpload: () => void;
   listSnapshots: () => { date: string; mealCount: number; savedAt: number }[];
   restoreSnapshot: (date: string) => Promise<boolean>;
 }) {
-  const [snapshots, setSnapshots] = useState(() => listSnapshots());
+  const [showSnapshots, setShowSnapshots] = useState(false);
+  const [snapshots] = useState(() => listSnapshots());
   const [restoringDate, setRestoringDate] = useState<string | null>(null);
-  const [msg, setMsg] = useState('');
-
-  function refresh() {
-    setSnapshots(listSnapshots());
-  }
+  const [snapMsg, setSnapMsg] = useState('');
 
   async function handleRestore(date: string, mealCount: number) {
     if (!window.confirm(`Obnovit ${mealCount} jídel ze zálohy z ${formatSnapDate(date)}? Stávající jídla zůstanou — přidají se jen ta, která chybí.`)) return;
     setRestoringDate(date);
-    setMsg('');
+    setSnapMsg('');
     const ok = await restoreSnapshot(date);
-    setMsg(ok ? '✓ Záloha obnovena' : 'Záloha nenalezena');
+    setSnapMsg(ok ? '✓ Záloha obnovena' : 'Záloha nenalezena');
     setRestoringDate(null);
-    refresh();
-    setTimeout(() => setMsg(''), 3000);
-  }
-
-  if (snapshots.length === 0) {
-    return (
-      <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-4 mt-2">
-        <h3 className="text-sm font-bold text-ink mb-1">Lokální zálohy</h3>
-        <p className="text-xs text-ink-soft">
-          Aplikace si denně ukládá lokální zálohu. Zatím nejsou k dispozici žádné — objeví se zde po prvním uložení.
-        </p>
-      </div>
-    );
+    setTimeout(() => setSnapMsg(''), 3000);
   }
 
   return (
     <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-4 mt-2">
-      <h3 className="text-sm font-bold text-ink mb-1">Lokální zálohy</h3>
+      <h3 className="text-sm font-bold text-ink mb-1">Záloha dat</h3>
       <p className="text-xs text-ink-soft mb-3">
-        Posledních 7 dnů. Klepni na zálohu pro doplnění chybějících jídel — neodstraní žádná stávající.
+        Data se průběžně ukládají do cloudu. Pokud se ti ztratila jídla, obnov vše jedním klepnutím — sloučí cloud, telefon i denní zálohy.
       </p>
-      <div className="space-y-1.5">
-        {snapshots.slice().reverse().map((s) => (
-          <button
-            key={s.date}
-            onClick={() => handleRestore(s.date, s.mealCount)}
-            disabled={restoringDate !== null}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.03] ring-1 ring-white/5 hover:bg-white/[0.06] active:scale-[0.99] transition-all disabled:opacity-40"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-base leading-none">📦</span>
-              <div className="text-left">
-                <div className="text-[13px] font-semibold text-ink leading-tight">{formatSnapDate(s.date)}</div>
-                <div className="text-[10px] text-ink-mute mt-0.5 tabular-nums">{s.mealCount} jídel</div>
-              </div>
-            </div>
-            {restoringDate === s.date ? (
-              <span className="inline-block w-3.5 h-3.5 border-2 border-white/20 border-t-coral-400 rounded-full animate-spin" />
-            ) : (
-              <span className="text-[11px] font-semibold text-coral-300">Obnovit</span>
-            )}
-          </button>
-        ))}
-      </div>
-      {msg && (
-        <p className={`text-center text-xs mt-2 ${msg.startsWith('✓') ? 'text-emerald-400' : 'text-amber-400'}`}>
-          {msg}
+
+      <button
+        onClick={onReload}
+        disabled={syncing}
+        className="w-full py-3 rounded-xl bg-coral-500/15 ring-1 ring-coral-400/30 text-coral-200 text-sm font-semibold active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+      >
+        {syncing ? (
+          <>
+            <span className="inline-block w-3.5 h-3.5 border-2 border-coral-400/30 border-t-coral-400 rounded-full animate-spin" />
+            Obnovuji…
+          </>
+        ) : (
+          '🔄 Obnovit data'
+        )}
+      </button>
+
+      {syncMsg && (
+        <p className={`text-center text-xs mt-2 ${syncMsg.startsWith('✓') ? 'text-emerald-400' : 'text-amber-400'}`}>
+          {syncMsg}
         </p>
       )}
+
+      {snapshots.length > 0 && (
+        <button
+          onClick={() => setShowSnapshots((v) => !v)}
+          className="w-full mt-3 text-[11px] text-ink-mute flex items-center justify-center gap-1 active:opacity-70"
+        >
+          {showSnapshots ? '▲' : '▼'} Denní zálohy ({snapshots.length})
+        </button>
+      )}
+
+      {showSnapshots && (
+        <div className="mt-2 space-y-1.5">
+          {snapshots.slice().reverse().map((s) => (
+            <button
+              key={s.date}
+              onClick={() => handleRestore(s.date, s.mealCount)}
+              disabled={restoringDate !== null}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.03] ring-1 ring-white/5 active:scale-[0.99] transition-all disabled:opacity-40"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-base leading-none">📦</span>
+                <div className="text-left">
+                  <div className="text-[13px] font-semibold text-ink leading-tight">{formatSnapDate(s.date)}</div>
+                  <div className="text-[10px] text-ink-mute mt-0.5 tabular-nums">{s.mealCount} jídel</div>
+                </div>
+              </div>
+              {restoringDate === s.date ? (
+                <span className="inline-block w-3.5 h-3.5 border-2 border-white/20 border-t-coral-400 rounded-full animate-spin" />
+              ) : (
+                <span className="text-[11px] font-semibold text-coral-300">Přidat chybějící</span>
+              )}
+            </button>
+          ))}
+          {snapMsg && (
+            <p className={`text-center text-xs mt-1 ${snapMsg.startsWith('✓') ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {snapMsg}
+            </p>
+          )}
+        </div>
+      )}
+
+      <button
+        onClick={onUpload}
+        disabled={syncing}
+        className="w-full mt-3 py-2 rounded-xl bg-white/[0.03] ring-1 ring-white/5 text-ink-mute text-[11px] font-medium active:scale-95 transition-transform disabled:opacity-50"
+      >
+        ⬆ Vynutit nahrání do cloudu
+      </button>
     </div>
   );
 }
