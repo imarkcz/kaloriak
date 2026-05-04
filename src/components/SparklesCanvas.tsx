@@ -14,12 +14,12 @@ interface Particle {
 const COLORS = [
   'rgba(249,115,102,',  // coral
   'rgba(251,113,133,',  // rose
-  'rgba(251,113,133,',  // rose (weighted)
-  'rgba(167,139,250,',  // violet
-  'rgba(139,92,246,',   // deep violet
+  'rgba(255,140,80,',   // orange
   'rgba(251,191,36,',   // amber
+  'rgba(251,191,36,',   // amber (weighted)
+  'rgba(255,200,100,',  // golden
   'rgba(255,255,255,',  // white
-  'rgba(255,255,255,',  // white
+  'rgba(255,255,255,',  // white (weighted)
 ];
 
 function createParticle(W: number, H: number): Particle {

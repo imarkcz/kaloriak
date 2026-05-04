@@ -4,12 +4,12 @@
 
 html, body, #root {
   height: 100%;
-  background: #0d0906;
+  background: #090806;
   color: #fafafa;
   font-family: Geist, Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv11' on, 'ss01' on, 'ss03' on;
+  font-feature-settings: 'cv11' on, 'ss03' on;
   font-optical-sizing: auto;
   text-rendering: optimizeLegibility;
   letter-spacing: -0.011em;
@@ -27,10 +27,9 @@ h3 { letter-spacing: -0.018em; }
 body {
   margin: 0;
   background:
-    radial-gradient(ellipse 100% 60% at 10% -10%, rgba(255,110,75,0.52), transparent 55%),
-    radial-gradient(ellipse 80% 55% at 92% 100%, rgba(251,146,60,0.32), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 50% 50%, rgba(251,100,60,0.08), transparent 60%),
-    #0d0906;
+    radial-gradient(ellipse 80% 50% at 15% 0%, rgba(255,100,70,0.14), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 88% 100%, rgba(251,140,50,0.10), transparent 55%),
+    #090806;
   background-attachment: fixed;
 }
 
@@ -89,27 +88,22 @@ input[type=range]::-moz-range-thumb {
 }
 
 
-/* Liquid glass — clear, less milky, with a real glossy edge highlight */
+/* Liquid glass — truly transparent, sparkles show through */
 .glass {
   position: relative;
-  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
-  backdrop-filter: blur(40px) saturate(190%);
-  -webkit-backdrop-filter: blur(40px) saturate(190%);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid rgba(255,255,255,0.09);
   box-shadow:
-    /* sharp top edge — primary glass gloss */
-    0 1px 0 rgba(255,255,255,0.30) inset,
-    /* secondary inner highlight on the upper-left */
-    1px 1px 0 rgba(255,255,255,0.08) inset,
-    /* dark bottom-edge for depth */
-    0 -1px 0 rgba(0,0,0,0.20) inset,
-    /* deep drop shadow */
-    0 16px 50px -16px rgba(0,0,0,0.55),
-    /* outer hairline for crispness */
+    0 1px 0 rgba(255,255,255,0.28) inset,
+    1px 1px 0 rgba(255,255,255,0.06) inset,
+    0 -1px 0 rgba(0,0,0,0.15) inset,
+    0 12px 40px -12px rgba(0,0,0,0.45),
     0 0 0 0.5px rgba(255,255,255,0.04);
 }
 
-/* Inner glossy highlight band — top-fade reflection, always above content */
+/* Inner glossy highlight band */
 .glass::after {
   content: '';
   position: absolute;
@@ -117,9 +111,9 @@ input[type=range]::-moz-range-thumb {
   border-radius: inherit;
   background: linear-gradient(
     180deg,
-    rgba(255,255,255,0.13) 0%,
-    rgba(255,255,255,0.04) 22%,
-    transparent 48%
+    rgba(255,255,255,0.10) 0%,
+    rgba(255,255,255,0.03) 20%,
+    transparent 45%
   );
   pointer-events: none;
   z-index: 2;
