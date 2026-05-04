@@ -74,16 +74,18 @@ function saveLocal(data: AppData): SaveLocalResult {
 
 // Strip heavy base64 blobs before sending to Firestore (1 MB limit per doc).
 // They stay in localStorage for local display.
-function stripBlobs(data: AppData): AppData {
-  // Use destructuring to fully omit blob fields — Firestore rejects `undefined` values
-  // and setting them to undefined causes "Unsupported field value: undefined" errors.
-  return {
+function stripBlobs(data: AppData): object {
+  // Remove blob fields, then JSON-roundtrip to purge every `undefined` value.
+  // Firestore rejects ANY undefined field — including optional ones like
+  // Meal.note, Meal.mealType, UserProfile.goalIntensity, etc.
+  const stripped = {
     ...data,
     profile: data.profile
       ? (({ avatarDataUrl: _a, ...rest }) => rest)(data.profile)
       : null,
     meals: data.meals.map(({ imageDataUrl: _i, ...m }) => m),
   };
+  return JSON.parse(JSON.stringify(stripped));
 }
 
 interface Snapshot { date: string; data: AppData; savedAt: number }
