@@ -19,8 +19,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center px-6 pb-12"
-      style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(249,115,102,0.18), transparent 70%), #0a0a0b' }}>
+    <div className="min-h-dvh flex flex-col items-center justify-center px-6 pb-12">
 
       {/* Logo */}
       <div className="mb-8 flex flex-col items-center gap-4 animate-pop">

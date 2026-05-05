@@ -62,9 +62,11 @@ export default function App() {
     <AppProvider>
       <BrowserRouter>
         <SparklesCanvas />
-        <UpdateBanner />
-        <SyncBanner />
-        <Shell />
+        <div className="relative" style={{ zIndex: 1 }}>
+          <UpdateBanner />
+          <SyncBanner />
+          <Shell />
+        </div>
       </BrowserRouter>
     </AppProvider>
   );

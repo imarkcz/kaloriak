@@ -30,13 +30,12 @@ function loadLocal(): AppData {
   }
 }
 
-// Strip image blobs from localStorage write. Images live in IndexedDB
-// (imageStore) which has GB-scale quota; localStorage stays under 1 MB
-// even with hundreds of meals.
+// Strip meal image blobs from localStorage. Meal images live in IndexedDB
+// (imageStore) which has GB-scale quota vs localStorage's ~5 MB.
+// Profile avatar stays in localStorage — it's at most one ~200 KB blob.
 function dataForLocalStorage(data: AppData): AppData {
   return {
     ...data,
-    profile: data.profile ? { ...data.profile, avatarDataUrl: undefined } : null,
     meals: data.meals.map((m) => ({ ...m, imageDataUrl: undefined })),
   };
 }
@@ -219,7 +218,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       setDataLoading(true);
       try {
-        const { docExists, data: cloud } = await loadFromFirestore(firebaseUser.uid);
+        // Load Firestore and IDB images in parallel to minimise startup latency.
+        const [{ docExists, data: cloud }, idbImages] = await Promise.all([
+          loadFromFirestore(firebaseUser.uid),
+          loadAllMealImages(),
+        ]);
         const local = loadLocal();
 
         if (docExists && cloud && (cloud.onboarded || cloud.meals.length > 0 || cloud.profile)) {
@@ -235,12 +238,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
               ? { ...cloud.profile, avatarDataUrl: local.profile?.avatarDataUrl }
               : local.profile,
             meals: [
-              ...localOnlyMeals,
+              ...localOnlyMeals.map((m) => ({ ...m, imageDataUrl: idbImages.get(m.id) })),
               ...cloud.meals.map((cm) => {
                 const lm = local.meals.find((m) => m.id === cm.id);
-                // lm fields as base so locally-set fields (mealType, etc.) survive
-                // if cloud copy is missing them; cloud then overrides; image stays local
-                return lm ? { ...lm, ...cm, imageDataUrl: lm.imageDataUrl } : cm;
+                // lm fields as base so locally-set fields (mealType, etc.) survive;
+                // cloud then overrides; IDB is the authoritative image source.
+                const base = lm ? { ...lm, ...cm } : cm;
+                return { ...base, imageDataUrl: idbImages.get(cm.id) };
               }),
             ],
           };
@@ -462,9 +466,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ...(local.water ?? {}),
       };
 
+      const idbImages = await loadAllMealImages();
       const merged: AppData = {
         profile,
-        meals: allMeals,
+        meals: allMeals.map((m) => ({ ...m, imageDataUrl: idbImages.get(m.id) })),
         activities: allActivities,
         water,
         geminiApiKey: local.geminiApiKey || cloud?.geminiApiKey || '',
