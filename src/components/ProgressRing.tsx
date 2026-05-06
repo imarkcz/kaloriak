@@ -91,14 +91,33 @@ export default function ProgressRing({
             <feGaussianBlur stdDeviation="5" result="b" />
             <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
+          {/* Shimmer comet glow */}
+          <filter id="shimmerGlow" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="5" result="b" />
+            <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
         </defs>
 
         {/* Track */}
         <circle
           cx={size / 2} cy={size / 2} r={r}
-          stroke="rgba(255,255,255,0.06)"
+          stroke="rgba(255,255,255,0.07)"
           strokeWidth={stroke} fill="none"
         />
+
+        {/* Rotating shimmer comet — orbits the full track continuously */}
+        <g style={{ transformOrigin: `${size / 2}px ${size / 2}px`, animation: 'ringShimmer 3.6s linear infinite' }}>
+          <circle
+            cx={size / 2} cy={size / 2} r={r}
+            stroke="rgba(255,255,255,0.85)"
+            strokeWidth={stroke - 3}
+            fill="none"
+            strokeLinecap="round"
+            strokeDasharray={`${c * 0.18} ${c * 0.82}`}
+            filter="url(#shimmerGlow)"
+            opacity={0.55}
+          />
+        </g>
 
         {/* Progress arc */}
         <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
@@ -123,6 +142,28 @@ export default function ProgressRing({
           </>
         )}
       </svg>
+
+      {/* Orbiting sparkle dots on the ring track */}
+      {([
+        { anim: 'animate-orbit-1', color: '#ffffff', sz: 4.5 },
+        { anim: 'animate-orbit-2', color: grad.from,  sz: 3.5 },
+        { anim: 'animate-orbit-3', color: grad.to,    sz: 3 },
+      ] as const).map((dot, i) => (
+        <div
+          key={i}
+          className={`absolute ${dot.anim} pointer-events-none`}
+          style={{
+            top: '50%', left: '50%',
+            width: dot.sz, height: dot.sz,
+            marginTop: -(dot.sz / 2), marginLeft: -(dot.sz / 2),
+            borderRadius: '50%',
+            background: dot.color,
+            boxShadow: `0 0 8px 4px ${dot.color}`,
+            opacity: 0.85,
+            '--orbit-r': `${r}px`,
+          } as React.CSSProperties}
+        />
+      ))}
 
       {/* Center content */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
