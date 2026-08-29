@@ -201,7 +201,7 @@ export default function BarcodeScanner({ onDetected, onClose }: Props) {
             <path d="M18 6 6 18M6 6l12 12"/>
           </svg>
         </button>
-        <span className="text-white font-bold">Skenovat kód</span>
+        <span className="text-white font-semibold">Skenovat kód</span>
         {hasTorch ? (
           <button
             onClick={toggleTorch}
@@ -240,9 +240,9 @@ export default function BarcodeScanner({ onDetected, onClose }: Props) {
       {/* Zoom slider — only if device supports zoom */}
       {zoomRange && zoomRange.max > zoomRange.min && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-32 z-10 flex items-center gap-2 bg-black/50 backdrop-blur rounded-full px-3 py-1.5">
-          <button onClick={() => applyZoom(zoom - 0.5)} className="text-white/80 text-sm font-bold w-6 h-6 flex items-center justify-center active:scale-90">−</button>
+          <button onClick={() => applyZoom(zoom - 0.5)} className="text-white/80 text-sm font-semibold w-6 h-6 flex items-center justify-center active:scale-90">−</button>
           <span className="text-white text-xs font-semibold tabular-nums w-9 text-center">{zoom.toFixed(1)}×</span>
-          <button onClick={() => applyZoom(zoom + 0.5)} className="text-white/80 text-sm font-bold w-6 h-6 flex items-center justify-center active:scale-90">+</button>
+          <button onClick={() => applyZoom(zoom + 0.5)} className="text-white/80 text-sm font-semibold w-6 h-6 flex items-center justify-center active:scale-90">+</button>
         </div>
       )}
 

@@ -71,11 +71,16 @@ export interface Activity {
 // Water log per day (key = ISO date, value = ml drunk that day).
 export type WaterLog = Record<string, number>;
 
+// Weight log per day (key = ISO date, value = kg). Profile.weightKg mirrors the
+// latest entry because every target calculation reads it.
+export type WeightLog = Record<string, number>;
+
 export interface AppData {
   profile: UserProfile | null;
   meals: Meal[];
   activities: Activity[];
   water: WaterLog;
+  weightLog?: WeightLog;
   geminiApiKey: string;
   onboarded: boolean;
 }

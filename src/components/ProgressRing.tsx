@@ -1,290 +1,123 @@
 import { useEffect, useRef, useState } from 'react';
 
 interface Props {
-  value: number;
+  eaten: number;
   target: number;
   size?: number;
   stroke?: number;
-  label?: string;
-  hint?: string;
 }
 
-function gradientFor(pct: number, over: boolean): { from: string; mid: string; to: string } {
-  if (over)      return { from: '#fbbf24', mid: '#fb923c', to: '#ef4444' };
-  if (pct < 0.6) return { from: '#fdba74', mid: '#fb7185', to: '#f43f5e' };
-  if (pct < 0.9) return { from: '#fb7185', mid: '#fb923c', to: '#fbbf24' };
-  return         { from: '#fbbf24', mid: '#a3e635', to: '#10b981' };
-}
-
-function hexToRgb(hex: string): [number, number, number] {
-  const n = parseInt(hex.replace('#', ''), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-interface Spore {
-  x: number; y: number;
-  vx: number; vy: number;
-  life: number;
-  maxLife: number;
-  size: number;
-  r: number; g: number; b: number;
-}
-
-export default function ProgressRing({
-  value,
-  target,
-  size = 220,
-  stroke = 12,
-  label,
-  hint,
-}: Props) {
+// The ring answers "how much can I still have", not "how much have I eaten".
+// Colour stays violet up to the target and turns amber past it — state, not
+// decoration. The rotating highlight is a CSS-masked conic gradient, so there
+// is no canvas and no per-frame JavaScript.
+export default function ProgressRing({ eaten, target, size = 224, stroke = 10 }: Props) {
   const r = (size - stroke) / 2 - 4;
-  const c = 2 * Math.PI * r;
-  const targetPct = target > 0 ? Math.min(1, value / target) : 0;
-  const over = value > target;
-  const grad = gradientFor(targetPct, over);
+  const circumference = 2 * Math.PI * r;
+  const pct = target > 0 ? Math.min(1, eaten / target) : 0;
+  const over = eaten > target;
+  const remaining = Math.round(target - eaten);
 
-  const [animPct, setAnimPct] = useState(0);
-  const prevPct = useRef(0);
+  // Animate the arc and the number together on change.
+  const [t, setT] = useState(0);
+  const from = useRef(0);
   useEffect(() => {
-    const from = prevPct.current;
-    const to = targetPct;
     const start = performance.now();
-    const duration = 1000;
+    const a = from.current;
     let raf = 0;
     const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setAnimPct(from + (to - from) * eased);
-      if (t < 1) raf = requestAnimationFrame(tick);
-      else prevPct.current = to;
+      const k = Math.min(1, (now - start) / 900);
+      const eased = 1 - Math.pow(1 - k, 4);
+      setT(a + (pct - a) * eased);
+      if (k < 1) raf = requestAnimationFrame(tick);
+      else from.current = pct;
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetPct]);
+  }, [pct]);
 
-  const offset = c * (1 - animPct);
-  const displayValue = Math.round(animPct * target);
-  const remaining = Math.max(0, Math.round(target - value));
+  const offset = circumference * (1 - t);
+  const angle = -Math.PI / 2 + t * 2 * Math.PI;
+  const dotX = size / 2 + r * Math.cos(angle);
+  const dotY = size / 2 + r * Math.sin(angle);
+  const showDot = t > 0.015 && t < 0.995;
 
-  const endAngle = -Math.PI / 2 + animPct * 2 * Math.PI;
-  const dotX = size / 2 + r * Math.cos(endAngle);
-  const dotY = size / 2 + r * Math.sin(endAngle);
-  const showDot = animPct > 0.02 && animPct < 0.99;
-
-  // Canvas comet + spores
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const gradRef = useRef(grad);
-  gradRef.current = grad;
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const cx = size / 2;
-    const cy = size / 2;
-    const ORBIT_PERIOD = 5.5; // seconds per full orbit
-    let cometAngle = -Math.PI / 2;
-    let spores: Spore[] = [];
-    let spawnTimer = 0;
-    let lastTime = 0;
-    let animId = 0;
-
-    function spawnSpore() {
-      const sx = cx + r * Math.cos(cometAngle);
-      const sy = cy + r * Math.sin(cometAngle);
-      // Radially outward direction from center
-      const dx = sx - cx;
-      const dy = sy - cy;
-      const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      const nx = dx / len;
-      const ny = dy / len;
-      // Speed: slow outward drift with slight random spread
-      const speed = Math.random() * 10 + 8;
-      const spread = 0.35;
-      const [rr, gg, bb] = hexToRgb(
-        [gradRef.current.from, gradRef.current.mid, gradRef.current.to, '#ffffff'][
-          Math.floor(Math.random() * 4)
-        ]
-      );
-      spores.push({
-        x: sx, y: sy,
-        vx: nx * speed + (Math.random() - 0.5) * spread * speed,
-        vy: ny * speed + (Math.random() - 0.5) * spread * speed,
-        life: 1,
-        maxLife: Math.random() * 0.6 + 0.8,
-        size: Math.random() * 2 + 1,
-        r: rr, g: gg, b: bb,
-      });
-    }
-
-    function draw(time: number) {
-      const dt = Math.min((time - lastTime) / 1000, 0.05);
-      lastTime = time;
-      ctx.clearRect(0, 0, size, size);
-
-      // Advance comet
-      cometAngle += (2 * Math.PI / ORBIT_PERIOD) * dt;
-
-      // Spawn spores
-      spawnTimer -= dt;
-      if (spawnTimer <= 0) {
-        spawnSpore();
-        if (Math.random() < 0.5) spawnSpore();
-        spawnTimer = 0.07 + Math.random() * 0.04;
-      }
-
-      // Draw + update spores
-      spores = spores.filter((s) => s.life > 0 && s.size > 0.15);
-      for (const s of spores) {
-        s.x += s.vx * dt;
-        s.y += s.vy * dt;
-        s.life -= dt / s.maxLife;
-        s.size *= Math.pow(0.88, dt * 60);
-        const alpha = Math.max(0, s.life) * 0.75;
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${s.r},${s.g},${s.b},${alpha.toFixed(3)})`;
-        ctx.fill();
-      }
-
-      // Comet glow halo
-      const cx2 = cx + r * Math.cos(cometAngle);
-      const cy2 = cy + r * Math.sin(cometAngle);
-      const grd = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, stroke * 2.2);
-      const [cr, cg, cb] = hexToRgb(gradRef.current.to);
-      grd.addColorStop(0,   `rgba(255,255,255,0.95)`);
-      grd.addColorStop(0.25, `rgba(${cr},${cg},${cb},0.7)`);
-      grd.addColorStop(1,   `rgba(${cr},${cg},${cb},0)`);
-      ctx.beginPath();
-      ctx.arc(cx2, cy2, stroke * 2.2, 0, Math.PI * 2);
-      ctx.fillStyle = grd;
-      ctx.fill();
-
-      // Comet core
-      ctx.beginPath();
-      ctx.arc(cx2, cy2, stroke / 2 - 0.5, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      ctx.fill();
-
-      animId = requestAnimationFrame(draw);
-    }
-
-    animId = requestAnimationFrame((t) => { lastTime = t; draw(t); });
-    return () => cancelAnimationFrame(animId);
-  // size and r are stable; grad is accessed via ref
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [size, r, stroke]);
+  const arcFrom = over ? '#e8b45f' : '#b9a3ff';
+  const arcTo = over ? '#f0765a' : '#8f69e0';
+  const ringMask =
+    `radial-gradient(farthest-side, transparent calc(100% - ${stroke + 1}px), #000 calc(100% - ${stroke + 1}px))`;
 
   return (
-    <>
     <div className="relative" style={{ width: size, height: size }}>
-      {/* Ambient glow */}
+      {/* Ambient bloom behind the ring */}
       <div
-        className="absolute inset-0 rounded-full pointer-events-none animate-ring-pulse"
+        className="absolute rounded-full pointer-events-none animate-breathe"
         style={{
-          background: `radial-gradient(circle at 50% 55%, ${grad.mid}cc 0%, transparent 62%)`,
-          filter: 'blur(28px)',
+          inset: '8%',
+          background: over ? '#e8b45f' : '#8f69e0',
+          filter: 'blur(46px)',
+          opacity: 0.42,
         }}
       />
 
-      <svg width={size} height={size} className="relative" viewBox={`0 0 ${size} ${size}`}>
+      {/* Slow highlight travelling around the ring */}
+      <div
+        className="absolute rounded-full pointer-events-none animate-sweep"
+        style={{
+          inset: 4,
+          background:
+            'conic-gradient(from 0deg, rgba(255,255,255,0) 0deg, rgba(255,255,255,0) 310deg, rgba(255,255,255,0.22) 350deg, rgba(255,255,255,0) 360deg)',
+          WebkitMaskImage: ringMask,
+          maskImage: ringMask,
+        }}
+      />
+
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="relative">
         <defs>
-          <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor={grad.from} />
-            <stop offset="50%" stopColor={grad.mid} />
-            <stop offset="100%" stopColor={grad.to} />
+          <linearGradient id="ringArc" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={arcFrom} />
+            <stop offset="100%" stopColor={arcTo} />
           </linearGradient>
-          <filter id="arcGlow" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="3.5" result="b" />
-            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-          <filter id="dotGlow" x="-300%" y="-300%" width="700%" height="700%">
-            <feGaussianBlur stdDeviation="5" result="b" />
-            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          <filter id="ringGlow" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="4" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
         </defs>
 
-        {/* Track */}
         <circle
           cx={size / 2} cy={size / 2} r={r}
-          stroke="rgba(255,255,255,0.07)"
-          strokeWidth={stroke} fill="none"
+          stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} fill="none"
         />
 
-        {/* Progress arc */}
         <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
           <circle
             cx={size / 2} cy={size / 2} r={r}
-            stroke="url(#ringGrad)"
-            strokeWidth={stroke} fill="none"
-            strokeLinecap="round"
-            strokeDasharray={c}
-            strokeDashoffset={offset}
-            filter="url(#arcGlow)"
+            stroke="url(#ringArc)" strokeWidth={stroke} fill="none" strokeLinecap="round"
+            strokeDasharray={circumference} strokeDashoffset={offset}
+            filter="url(#ringGlow)"
           />
         </g>
 
-        {/* Glowing endpoint dot */}
         {showDot && (
           <>
-            <circle cx={dotX} cy={dotY} r={stroke / 2 + 4} fill={grad.to} opacity={0.25} />
-            <circle cx={dotX} cy={dotY} r={stroke / 2 - 0.5} fill="#fff" filter="url(#dotGlow)" />
+            <circle cx={dotX} cy={dotY} r={stroke / 2 + 5} fill={arcTo} opacity={0.28} />
+            <circle cx={dotX} cy={dotY} r={stroke / 2 - 0.5} fill="#fff" />
           </>
         )}
       </svg>
 
-      {/* Canvas comet + spores overlay */}
-      <canvas
-        ref={canvasRef}
-        width={size}
-        height={size}
-        className="absolute inset-0 pointer-events-none"
-      />
-
-      {/* Center content */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-[9px] uppercase tracking-[0.3em] text-ink-mute font-bold mb-1">
-          {label ?? 'kalorie'}
+        <span className="text-micro font-semibold uppercase tracking-label text-ink-mute">
+          {over ? 'nad cíl' : 'zbývá'}
         </span>
-
         <span
-          className="tabular-nums leading-none font-bold font-display text-white"
-          style={{ fontSize: size * 0.285, letterSpacing: '-0.02em' }}
+          className="tabular-nums font-semibold text-white leading-none mt-1.5"
+          style={{ fontSize: size * 0.27, letterSpacing: '-0.05em' }}
         >
-          {displayValue}
+          {Math.abs(remaining)}
         </span>
-
-        <div className="flex items-center gap-1 mt-1.5">
-          <span className="text-[11px] tabular-nums text-ink-mute">/ {target} kcal</span>
-        </div>
-
-        <div
-          className={`mt-2.5 px-3 py-1 rounded-full text-[10px] font-semibold tabular-nums ring-1 ${
-            over
-              ? 'bg-red-500/15 text-red-300 ring-red-500/20'
-              : animPct >= 1
-                ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/20'
-                : 'bg-white/[0.06] text-ink-soft ring-white/10'
-          }`}
-        >
-          {over
-            ? `+${Math.round(value - target)} nad cíl`
-            : animPct >= 1
-              ? 'Cíl splněn 🎯'
-              : `${remaining} kcal zbývá`}
-        </div>
+        <span className="text-sm text-ink-mute mt-1.5">kcal</span>
       </div>
     </div>
-
-    {hint && (
-      <p className="mt-3 text-[10px] text-ink-mute text-center leading-snug max-w-[220px] px-2">
-        {hint}
-      </p>
-    )}
-    </>
   );
 }

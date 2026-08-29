@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import Icon from './Icon';
 
 interface Props {
   src?: string;
@@ -9,7 +10,8 @@ interface Props {
   onRemove?: () => void;
 }
 
-// Crop to a square and downscale to maxSize (centered cover crop).
+// Centred square crop, downscaled — the avatar is the one blob that still
+// lives in localStorage, so it has to stay small.
 async function cropAndCompress(file: File, maxSize = 320, quality = 0.85): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const minSide = Math.min(bitmap.width, bitmap.height);
@@ -37,34 +39,29 @@ export default function Avatar({ src, name, size = 96, editable = false, onChang
   async function handleFile(file: File) {
     if (!onChange) return;
     try {
-      const dataUrl = await cropAndCompress(file);
-      onChange(dataUrl);
-    } catch {
-      // ignore — surface noise here would just be a toast
-    }
+      onChange(await cropAndCompress(file));
+    } catch { /* unreadable image — keep the previous avatar */ }
   }
 
   return (
     <div className="relative inline-block group" style={{ width: size, height: size }}>
-      {/* Aurora glow halo */}
       <div
-        className="absolute inset-0 rounded-full blur-2xl opacity-50 animate-ring-pulse pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(251,113,133,0.65), transparent 70%)' }}
+        className="absolute rounded-full pointer-events-none"
+        style={{ inset: '-14%', background: '#8f69e0', filter: `blur(${size * 0.22}px)`, opacity: 0.35 }}
       />
       <div
-        className="absolute inset-0 rounded-full overflow-hidden ring-1 ring-white/15"
+        className="absolute inset-0 rounded-full overflow-hidden"
         style={{
-          background: src
-            ? undefined
-            : 'linear-gradient(135deg, #ff8a65 0%, #f43f5e 100%)',
+          border: '1px solid rgba(255,255,255,0.14)',
+          background: src ? undefined : 'linear-gradient(150deg, #a78bfa 0%, #6535bd 100%)',
         }}
       >
         {src ? (
           <img src={src} alt={name ?? ''} className="w-full h-full object-cover" />
         ) : (
           <div
-            className="w-full h-full flex items-center justify-center text-white font-extrabold tracking-tight uppercase"
-            style={{ fontSize: size * 0.36 }}
+            className="w-full h-full flex items-center justify-center text-white font-semibold uppercase"
+            style={{ fontSize: size * 0.34, letterSpacing: '-0.02em' }}
           >
             {initials(name)}
           </div>
@@ -84,21 +81,19 @@ export default function Avatar({ src, name, size = 96, editable = false, onChang
             type="button"
             onClick={() => fileRef.current?.click()}
             aria-label="Změnit fotku"
-            className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-grad-coral text-white flex items-center justify-center shadow-coral-glow ring-2 ring-bg active:scale-90 transition-transform"
+            className="btn btn-primary absolute bottom-0 right-0 w-9 h-9 rounded-full"
+            style={{ boxShadow: '0 0 0 3px #0c0b0c, 0 10px 30px -10px rgba(143,105,224,0.7)' }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
+            <Icon name="camera" size={15} />
           </button>
           {src && onRemove && (
             <button
               type="button"
               onClick={onRemove}
               aria-label="Odstranit fotku"
-              className="absolute top-0 right-0 w-7 h-7 rounded-full bg-surface-3/90 backdrop-blur text-ink-soft flex items-center justify-center ring-1 ring-white/10 active:scale-90 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="btn btn-ghost absolute top-0 right-0 w-7 h-7 rounded-full opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              <Icon name="close" size={12} />
             </button>
           )}
         </>

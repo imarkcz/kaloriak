@@ -1,129 +1,111 @@
 /** @type {import('tailwindcss').Config} */
+// Tokens follow DESIGN.md. Direction is taken from superconscious-app.webflow.io:
+// deep near-black ground, violet glow, one geometric sans, soft rounded dark cards.
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
-        // Coral / peach primary — warm, food-friendly
-        coral: {
-          50: '#fff1ee',
-          100: '#ffe1da',
-          200: '#ffc6b8',
-          300: '#ffa089',
-          400: '#fb7185',
-          500: '#f97366',
-          600: '#ea5a4a',
-          700: '#c44232',
-          800: '#9a3327',
-          900: '#7c2a22',
-        },
-        // Dark surfaces — neutral deep black
-        bg: '#080808',
-        surface: '#111111',
-        'surface-2': '#181818',
-        'surface-3': '#1f1f1f',
-        border: '#2a2a2a',
-        'border-soft': '#1e1e1e',
+        bg: '#0c0b0c',
+        surface: '#131215',
+        'surface-2': '#1a181d',
+        'surface-3': '#232028',
+        line: 'rgba(255,255,255,0.07)',
+        'line-2': 'rgba(255,255,255,0.14)',
+
         ink: {
-          DEFAULT: '#fafafa',
-          soft: '#a1a1aa',
-          mute: '#71717a',
-          line: '#2a2a30',
+          DEFAULT: '#ffffff',
+          soft: 'rgba(255,255,255,0.70)',
+          mute: 'rgba(255,255,255,0.45)',
+          dim: 'rgba(255,255,255,0.30)',
         },
-        // Macro accent colors (vibrant)
+
+        violet: {
+          200: '#d9caff',
+          300: '#b9a3ff',
+          400: '#a78bfa',
+          500: '#8f69e0',
+          600: '#7c4ddb',
+          700: '#6535bd',
+        },
+        lilac: '#edc5fc',
+
         macro: {
-          protein: '#fb7185',
-          carbs: '#fbbf24',
-          fat: '#a78bfa',
+          protein: '#f47da6',
+          carbs: '#e8b45f',
+          fat: '#6ec2f0',
         },
+
+        // Semantic state — deliberately separate from the violet accent.
+        danger: '#f0765a',
+        warn: '#e0a03f',
+        ok: '#5ecf9e',
       },
+
       fontFamily: {
-        sans: ['Geist', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
-        display: ['"Space Grotesk"', 'Geist', 'Inter', 'system-ui', 'sans-serif'],
-        mono: ['"Geist Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        sans: ['"Wix Madefor Display"', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
       },
+
+      fontSize: {
+        // Fixed rem scale, ratio 1.2. Smallest label is 12px — see DESIGN.md.
+        micro: ['0.75rem', { lineHeight: '1rem' }],
+        sm: ['0.8125rem', { lineHeight: '1.15rem' }],
+        base: ['0.9375rem', { lineHeight: '1.4rem' }],
+        h3: ['1.0625rem', { lineHeight: '1.35rem', letterSpacing: '-0.015em' }],
+        h2: ['1.3125rem', { lineHeight: '1.6rem', letterSpacing: '-0.025em' }],
+        h1: ['1.75rem', { lineHeight: '2rem', letterSpacing: '-0.035em' }],
+        hero: ['2.5rem', { lineHeight: '1', letterSpacing: '-0.045em' }],
+        display: ['3.5rem', { lineHeight: '0.95', letterSpacing: '-0.055em' }],
+      },
+
       letterSpacing: {
-        tightest: '-0.04em',
-        tight2: '-0.025em',
+        label: '0.08em',
+        num: '-0.05em',
       },
-      backgroundImage: {
-        'grad-coral': 'linear-gradient(135deg, #ff8a65 0%, #f43f5e 100%)',
-        'grad-protein': 'linear-gradient(135deg, #fb7185 0%, #f43f5e 100%)',
-        'grad-carbs': 'linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%)',
-        'grad-fat': 'linear-gradient(135deg, #c4b5fd 0%, #7c3aed 100%)',
-        'grad-glow': 'radial-gradient(circle at 30% 30%, rgba(251,113,133,0.18), transparent 60%)',
+
+      borderRadius: {
+        field: '1rem',
+        card: '1.5rem',
+        'card-lg': '1.75rem',
       },
+
       boxShadow: {
-        'coral-glow': '0 10px 40px -10px rgba(249,115,102,0.55)',
-        'coral-soft': '0 8px 24px -6px rgba(249,115,102,0.35)',
+        card: '0 1px 0 rgba(255,255,255,0.05) inset, 0 24px 60px -30px rgba(0,0,0,0.9)',
+        violet: '0 10px 34px -12px rgba(143,105,224,0.6)',
+        'violet-lg': '0 18px 60px -18px rgba(143,105,224,0.7)',
       },
+
+      transitionTimingFunction: {
+        // ease-out-expo. No bounce anywhere in the app.
+        out: 'cubic-bezier(0.16, 1, 0.3, 1)',
+      },
+
       animation: {
-        'fade-up': 'fadeUp 400ms cubic-bezier(.2,.8,.2,1) both',
-        'pop': 'pop 320ms cubic-bezier(.34,1.56,.64,1) both',
-        'shimmer': 'shimmer 2s linear infinite',
-        'ring-pulse': 'ringPulse 3.6s ease-in-out infinite',
-        'ring-shimmer': 'ringShimmer 4s linear infinite',
-        'ring-halo': 'ringHalo 12s linear infinite',
-        'orbit-1': 'orbit 6s linear infinite',
-        'orbit-2': 'orbit 9s linear infinite reverse',
-        'orbit-3': 'orbit 14s linear infinite',
-        'ember': 'ember 2.6s ease-out infinite',
-        'water-fill': 'waterFill 600ms cubic-bezier(.34,1.56,.64,1) both',
-        'water-wave': 'waterWave 3.2s ease-in-out infinite',
-        'water-wave-slow': 'waterWave 5.5s ease-in-out infinite reverse',
-        'pill-spark': 'pillSpark 2.4s ease-out infinite',
-        'pill-halo': 'pillHalo 600ms ease-out forwards',
+        reveal: 'reveal 460ms cubic-bezier(0.16,1,0.3,1) both',
+        sweep: 'sweep 8s linear infinite',
+        drift: 'drift 42s ease-in-out infinite',
+        'drift-slow': 'drift 64s ease-in-out infinite reverse',
+        breathe: 'breathe 7s ease-in-out infinite',
+        'spin-slow': 'spin 2.4s linear infinite',
       },
+
       keyframes: {
-        fadeUp: {
-          '0%': { opacity: '0', transform: 'translateY(8px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
+        reveal: {
+          '0%': { opacity: '0', transform: 'translate3d(0,10px,0)' },
+          '100%': { opacity: '1', transform: 'translate3d(0,0,0)' },
         },
-        pop: {
-          '0%': { opacity: '0', transform: 'scale(0.92)' },
-          '100%': { opacity: '1', transform: 'scale(1)' },
-        },
-        shimmer: {
-          '0%': { backgroundPosition: '-200% 0' },
-          '100%': { backgroundPosition: '200% 0' },
-        },
-        ringPulse: {
-          '0%, 100%': { opacity: '0.35', transform: 'scale(0.95)' },
-          '50%': { opacity: '0.6', transform: 'scale(1.05)' },
-        },
-        ringShimmer: {
+        sweep: {
           '0%': { transform: 'rotate(0deg)' },
           '100%': { transform: 'rotate(360deg)' },
         },
-        ringHalo: {
-          '0%': { transform: 'rotate(0deg)' },
-          '100%': { transform: 'rotate(360deg)' },
+        drift: {
+          '0%, 100%': { transform: 'translate3d(0,0,0) scale(1)' },
+          '33%': { transform: 'translate3d(6%,-8%,0) scale(1.12)' },
+          '66%': { transform: 'translate3d(-7%,5%,0) scale(0.94)' },
         },
-        orbit: {
-          '0%':   { transform: 'rotate(0deg) translateX(var(--orbit-r,110px)) rotate(0deg)' },
-          '100%': { transform: 'rotate(360deg) translateX(var(--orbit-r,110px)) rotate(-360deg)' },
-        },
-        ember: {
-          '0%':   { transform: 'translate(0, 0) scale(0.6)', opacity: '0' },
-          '15%':  { opacity: '0.9' },
-          '100%': { transform: 'translate(var(--ember-x,0), -90px) scale(0.2)', opacity: '0' },
-        },
-        waterFill: {
-          '0%': { transform: 'translateY(100%)' },
-          '100%': { transform: 'translateY(0)' },
-        },
-        waterWave: {
-          '0%, 100%': { transform: 'translateX(-25%)' },
-          '50%': { transform: 'translateX(0%)' },
-        },
-        pillSpark: {
-          '0%':   { transform: 'translateY(0) scale(0.4)', opacity: '0' },
-          '20%':  { opacity: '1' },
-          '100%': { transform: 'translateY(-70px) scale(0.2)', opacity: '0' },
-        },
-        pillHalo: {
-          '0%':   { opacity: '0' },
-          '100%': { opacity: '1' },
+        breathe: {
+          '0%, 100%': { opacity: '0.5' },
+          '50%': { opacity: '0.85' },
         },
       },
     },

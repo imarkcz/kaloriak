@@ -2,14 +2,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react';
 import type { User } from 'firebase/auth';
 import { browserLocalPersistence, onAuthStateChanged, setPersistence, signInWithPopup, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../lib/firebase';
 import type { Activity, AppData, Meal, UserProfile } from '../types';
 import { deleteMealImage, loadAllMealImages, pruneMealImages, saveMealImage } from '../lib/imageStore';
 
 const STORAGE_KEY = 'kaloriak:v1';
 
-export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error' | 'offline';
+export type SyncStatus = 'idle' | 'pending' | 'synced' | 'offline' | 'error';
 
 const DEFAULT: AppData = {
   profile: null,
@@ -30,93 +30,67 @@ function loadLocal(): AppData {
   }
 }
 
-// Strip meal image blobs from localStorage. Meal images live in IndexedDB
-// (imageStore) which has GB-scale quota vs localStorage's ~5 MB.
-// Profile avatar stays in localStorage — it's at most one ~200 KB blob.
-function dataForLocalStorage(data: AppData): AppData {
-  return {
-    ...data,
-    meals: data.meals.map((m) => ({ ...m, imageDataUrl: undefined })),
-  };
-}
-
-interface SaveLocalResult { ok: boolean; quotaExceeded: boolean }
-
-function saveLocal(data: AppData): SaveLocalResult {
-  const stripped = dataForLocalStorage(data);
+// Meal photos live in IndexedDB (imageStore), not localStorage — a single
+// base64 photo is ~300 kB against localStorage's ~5 MB origin cap. The profile
+// avatar stays here, it is one small blob.
+function saveLocal(data: AppData): boolean {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : '';
-    if (/quota|exceeded|QUOTA|NS_ERROR_DOM_QUOTA/i.test(msg)) {
-      // Free space by dropping all snapshots and retry
-      Object.keys(localStorage)
-        .filter((k) => k.startsWith('kaloriak:snapshot:'))
-        .forEach((k) => localStorage.removeItem(k));
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped)); }
-      catch { return { ok: false, quotaExceeded: true }; }
-    } else {
-      return { ok: false, quotaExceeded: false };
-    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      ...data,
+      meals: data.meals.map((m) => ({ ...m, imageDataUrl: undefined })),
+    }));
+    return true;
+  } catch {
+    return false;
   }
-
-  // Daily snapshot — also stripped so it stays small (~50 kB even with 200+ meals)
-  try {
-    const today = new Date().toISOString().slice(0, 10);
-    localStorage.setItem(`kaloriak:snapshot:${today}`, JSON.stringify({ savedAt: Date.now(), data: stripped }));
-    const all = Object.keys(localStorage).filter((k) => k.startsWith('kaloriak:snapshot:')).sort();
-    if (all.length > 7) all.slice(0, all.length - 7).forEach((k) => localStorage.removeItem(k));
-  } catch { /* snapshot failure is recoverable, primary state is fine */ }
-
-  return { ok: true, quotaExceeded: false };
 }
 
-// Strip heavy base64 blobs before sending to Firestore (1 MB limit per doc).
-// They stay in localStorage for local display.
-function stripBlobs(data: AppData): object {
-  // Remove blob fields, then JSON-roundtrip to purge every `undefined` value.
-  // Firestore rejects ANY undefined field — including optional ones like
-  // Meal.note, Meal.mealType, UserProfile.goalIntensity, etc.
+// Firestore rejects every undefined field and caps a document at 1 MiB, so
+// blobs come out and the JSON round-trip purges undefined values.
+function stripBlobs(data: AppData): Record<string, unknown> {
   const stripped = {
     ...data,
-    profile: data.profile
-      ? (({ avatarDataUrl: _a, ...rest }) => rest)(data.profile)
-      : null,
-    meals: data.meals.map(({ imageDataUrl: _i, ...m }) => m),
+    profile: data.profile ? { ...data.profile, avatarDataUrl: undefined } : null,
+    meals: data.meals.map((m) => ({ ...m, imageDataUrl: undefined })),
   };
   return JSON.parse(JSON.stringify(stripped));
 }
 
-interface Snapshot { date: string; data: AppData; savedAt: number }
-
-function loadAllSnapshots(): Snapshot[] {
-  const out: Snapshot[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (!k || !k.startsWith('kaloriak:snapshot:')) continue;
-    try {
-      const raw = localStorage.getItem(k);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw) as { savedAt: number; data: AppData };
-      out.push({ date: k.replace('kaloriak:snapshot:', ''), data: parsed.data, savedAt: parsed.savedAt });
-    } catch { /* corrupt snapshot — skip */ }
-  }
-  return out.sort((a, b) => a.date.localeCompare(b.date));
+function withImages(data: AppData, images: Map<string, string>, avatar?: string): AppData {
+  return {
+    ...data,
+    profile: data.profile ? { ...data.profile, avatarDataUrl: avatar ?? data.profile.avatarDataUrl } : data.profile,
+    meals: data.meals.map((m) => ({ ...m, imageDataUrl: images.get(m.id) })),
+  };
 }
 
-async function loadFromFirestore(uid: string): Promise<{ docExists: boolean; data: AppData | null }> {
-  try {
-    const snap = await getDoc(doc(db, 'users', uid));
-    if (!snap.exists()) return { docExists: false, data: null };
-    return { docExists: true, data: { ...DEFAULT, ...(snap.data() as Partial<AppData>) } };
-  } catch {
-    return { docExists: false, data: null };
-  }
+// Cloud wins on conflict, but anything logged locally and not yet in the cloud
+// is kept and re-uploaded. Locally-set fields survive underneath cloud values.
+function mergeCloudAndLocal(cloud: AppData, local: AppData): AppData {
+  const cloudIds = new Set(cloud.meals.map((m) => m.id));
+  const cloudActIds = new Set((cloud.activities ?? []).map((a) => a.id));
+  return {
+    ...cloud,
+    onboarded: cloud.onboarded || local.onboarded,
+    geminiApiKey: local.geminiApiKey || cloud.geminiApiKey,
+    profile: cloud.profile ?? local.profile,
+    water: { ...(local.water ?? {}), ...(cloud.water ?? {}) },
+    meals: [
+      ...local.meals.filter((m) => !cloudIds.has(m.id)),
+      ...cloud.meals.map((cm) => {
+        const lm = local.meals.find((m) => m.id === cm.id);
+        return lm ? { ...lm, ...cm } : cm;
+      }),
+    ].sort((a, b) => b.createdAt - a.createdAt),
+    activities: [
+      ...(local.activities ?? []).filter((a) => !cloudActIds.has(a.id)),
+      ...(cloud.activities ?? []),
+    ].sort((a, b) => b.createdAt - a.createdAt),
+  };
 }
 
-async function saveToFirestore(uid: string, data: AppData): Promise<void> {
-  // Throws on failure — caller decides how to surface.
-  await setDoc(doc(db, 'users', uid), stripBlobs(data), { merge: true });
+function hasContent(d: AppData): boolean {
+  return d.onboarded || d.meals.length > 0 || !!d.profile;
 }
 
 interface AppContextValue {
@@ -125,6 +99,7 @@ interface AppContextValue {
   authLoading: boolean;
   dataLoading: boolean;
   syncStatus: SyncStatus;
+  syncError: string | null;
   storageWarning: string | null;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
@@ -136,10 +111,9 @@ interface AppContextValue {
   addActivity: (a: Activity) => void;
   deleteActivity: (id: string) => void;
   setWater: (date: string, ml: number) => void;
+  setWeight: (kg: number) => void;
   resetAll: () => void;
-  reloadFromCloud: () => Promise<{ total: number; recovered: number } | null>;
-  listSnapshots: () => { date: string; mealCount: number; savedAt: number }[];
-  restoreSnapshot: (date: string) => Promise<boolean>;
+  reloadFromCloud: () => Promise<number | null>;
   forceUploadToCloud: () => Promise<boolean>;
 }
 
@@ -151,186 +125,173 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
-  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const userRef = useRef<User | null>(null);
   const dataRef = useRef<AppData>(data);
-  const skipNextSync = useRef(false);
-  userRef.current = user;
-  dataRef.current = data;
+  const writeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Signature of the document as the cloud last had it. Guards the realtime
+  // listener from re-applying our own echo and starting a write loop.
+  const lastSeen = useRef<string>('');
+  const ready = useRef(false);
 
-  // On first mount, hydrate meal images from IndexedDB. Initial useState
-  // loaded from localStorage which is now image-free.
+  // Kept in sync after commit rather than during render: everything that reads
+  // these refs (the debounced write, the hide flush, the manual sync buttons)
+  // runs in an effect or an event handler, never while rendering.
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { dataRef.current = data; }, [data]);
+
+  // Hydrate meal photos from IndexedDB — initial state came from localStorage,
+  // which is image-free.
   useEffect(() => {
     loadAllMealImages().then((images) => {
       if (images.size === 0) return;
       setData((d) => ({
         ...d,
-        meals: d.meals.map((m) => images.has(m.id) ? { ...m, imageDataUrl: images.get(m.id) } : m),
+        meals: d.meals.map((m) => (images.has(m.id) ? { ...m, imageDataUrl: images.get(m.id) } : m)),
       }));
-    }).catch(() => { /* IDB unavailable, app works without thumbnails */ });
+    }).catch(() => { /* IDB unavailable — the app works without thumbnails */ });
   }, []);
 
-  // Reliable Firestore push: tracks status, surfaces failures, retries once
-  // on network blips. Returns true on success.
-  const pushToCloud = useCallback(async (snapshot: AppData): Promise<boolean> => {
-    if (!userRef.current) return false;
-    setSyncStatus('syncing');
+  // iOS PWA standalone can lose the default persistence across sessions.
+  useEffect(() => {
+    setPersistence(auth, browserLocalPersistence).catch(() => { /* falls back to memory */ });
+  }, []);
+
+  const write = useCallback(async (snapshot: AppData) => {
+    const u = userRef.current;
+    if (!u) return false;
+    const payload = stripBlobs(snapshot);
+    lastSeen.current = JSON.stringify(payload);
     try {
-      await saveToFirestore(userRef.current.uid, snapshot);
-      setSyncStatus('synced');
+      // With persistentLocalCache this resolves on server ack, but the write is
+      // already durable in IndexedDB and replays on its own. A rejection here is
+      // therefore informational, never data loss.
+      await setDoc(doc(db, 'users', u.uid), payload, { merge: true });
       return true;
-    } catch (e1) {
-      // One retry — Firestore occasionally fails on first attempt after wake-up
-      try {
-        await new Promise((r) => setTimeout(r, 400));
-        await saveToFirestore(userRef.current.uid, snapshot);
-        setSyncStatus('synced');
-        return true;
-      } catch (e2) {
-        const msg = e2 instanceof Error ? e2.message : String(e2);
-        if (/offline|network|failed to fetch/i.test(msg)) setSyncStatus('offline');
-        else setSyncStatus('error');
-        // eslint-disable-next-line no-console
-        console.warn('[Firestore] sync failed', e1, e2);
-        return false;
+    } catch (e) {
+      const code = e instanceof Error && 'code' in e ? String((e as { code: unknown }).code) : String(e);
+      if (!/unavailable|offline|deadline/i.test(code)) {
+        setSyncStatus('error');
+        setSyncError(code);
       }
+      return false;
     }
   }, []);
 
-  // Set persistence explicitly — important for iOS PWA standalone mode where
-  // default IndexedDB persistence may not survive sessions.
+  // Auth + one-shot initial load. The realtime listener attaches afterwards so
+  // the merge below is never racing an incoming snapshot.
   useEffect(() => {
-    setPersistence(auth, browserLocalPersistence).catch(() => {
-      // Falls back to in-memory if browser blocks IndexedDB
-    });
-  }, []);
-
-  // Listen for auth state changes
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+    return onAuthStateChanged(auth, async (firebaseUser) => {
+      ready.current = false;
+      // Set the ref here as well as in the effect below: this callback calls
+      // write() before React has committed the setUser render, and write()
+      // bails without a user.
+      userRef.current = firebaseUser;
       setUser(firebaseUser);
 
       if (!firebaseUser) {
         setAuthLoading(false);
+        setSyncStatus('idle');
         return;
       }
 
       setDataLoading(true);
       try {
-        // Load Firestore and IDB images in parallel to minimise startup latency.
-        const [{ docExists, data: cloud }, idbImages] = await Promise.all([
-          loadFromFirestore(firebaseUser.uid),
+        const [snap, images] = await Promise.all([
+          getDoc(doc(db, 'users', firebaseUser.uid)).catch(() => null),
           loadAllMealImages(),
         ]);
         const local = loadLocal();
+        const avatar = local.profile?.avatarDataUrl;
+        const cloud = snap?.exists() ? { ...DEFAULT, ...(snap.data() as Partial<AppData>) } : null;
 
-        if (docExists && cloud && (cloud.onboarded || cloud.meals.length > 0 || cloud.profile)) {
-          // Cloud has real data — merge with local blobs AND local-only meals not yet synced
-          const cloudMealIds = new Set(cloud.meals.map((m) => m.id));
-          const localOnlyMeals = local.meals.filter((m) => !cloudMealIds.has(m.id));
-          const merged: AppData = {
-            ...cloud,
-            // Never lose onboarded=true — cloud field may be missing or false due to old save
-            onboarded: cloud.onboarded || local.onboarded,
-            geminiApiKey: local.geminiApiKey || cloud.geminiApiKey,
-            profile: cloud.profile
-              ? { ...cloud.profile, avatarDataUrl: local.profile?.avatarDataUrl }
-              : local.profile,
-            meals: [
-              ...localOnlyMeals.map((m) => ({ ...m, imageDataUrl: idbImages.get(m.id) })),
-              ...cloud.meals.map((cm) => {
-                const lm = local.meals.find((m) => m.id === cm.id);
-                // lm fields as base so locally-set fields (mealType, etc.) survive;
-                // cloud then overrides; IDB is the authoritative image source.
-                const base = lm ? { ...lm, ...cm } : cm;
-                return { ...base, imageDataUrl: idbImages.get(cm.id) };
-              }),
-            ],
-          };
-          skipNextSync.current = true;
-          setData(merged);
-          // Immediately upload if local had unsynced meals to prevent future loss
-          if (localOnlyMeals.length > 0) {
-            await saveToFirestore(firebaseUser.uid, merged);
-          }
-        } else if (docExists) {
-          // Firestore doc exists but has no meaningful data (returning user, data lost).
-          // Keep local state — if local also empty, at least skip onboarding since account exists.
-          if (local.onboarded || local.profile || local.meals.length > 0) {
-            await saveToFirestore(firebaseUser.uid, local); // re-upload local
-          } else {
-            // Authenticated returning user with no data anywhere — skip onboarding,
-            // let them fill in profile from Profile page instead.
-            skipNextSync.current = true;
-            setData((d) => ({ ...d, onboarded: true }));
-          }
-        } else if (local.onboarded || local.meals.length > 0 || local.profile) {
-          // No cloud doc but local has data → upload local to cloud immediately
-          await saveToFirestore(firebaseUser.uid, local);
-          // local data is already in state, no setData needed
+        if (cloud && hasContent(cloud)) {
+          const merged = mergeCloudAndLocal(cloud, local);
+          setData(withImages(merged, images, avatar));
+          lastSeen.current = JSON.stringify(stripBlobs(merged));
+          if (merged.meals.length !== cloud.meals.length) await write(merged);
+        } else if (hasContent(local)) {
+          setData(withImages(local, images, avatar));
+          await write(local);
+        } else if (snap?.exists()) {
+          // Authenticated account with no data anywhere: skip onboarding and let
+          // the profile page fill in the details.
+          setData((d) => ({ ...d, onboarded: true }));
         }
-        // else: genuinely new user with no data anywhere → show onboarding
+        // else: genuinely new user — onboarding
       } finally {
+        ready.current = true;
         setDataLoading(false);
         setAuthLoading(false);
       }
     });
-    return unsub;
-  }, []);
+  }, [write]);
 
-  // Sync to localStorage always; Firestore writes are now driven by
-  // explicit force-sync on mutating actions (addMeal etc.), not from this
-  // useEffect. The debounced fallback covers passive state drift only.
+  // Realtime listener: drives sync status from Firestore's own metadata and
+  // brings in changes made on another device.
   useEffect(() => {
-    const result = saveLocal(data);
-    if (!result.ok) {
-      setStorageWarning('Lokální úložiště je plné. Některá data se nemusí uložit. Smaž starší jídla nebo aplikaci přeinstaluj.');
-    } else if (storageWarning) {
-      setStorageWarning(null);
-    }
-    if (skipNextSync.current) {
-      skipNextSync.current = false;
-      return;
-    }
-    if (syncTimer.current) clearTimeout(syncTimer.current);
-    if (userRef.current) {
-      // 500ms debounced fallback for non-critical state changes (water, etc.)
-      syncTimer.current = setTimeout(() => {
-        if (userRef.current) pushToCloud(dataRef.current);
-      }, 500);
-    }
-  // storageWarning excluded — including it would cause infinite re-runs
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, pushToCloud]);
+    if (!user) return;
+    const unsub = onSnapshot(
+      doc(db, 'users', user.uid),
+      { includeMetadataChanges: true },
+      (snap) => {
+        setSyncStatus(snap.metadata.hasPendingWrites ? 'pending' : 'synced');
+        setSyncError(null);
+        if (!ready.current || snap.metadata.hasPendingWrites || !snap.exists()) return;
 
-  // Flush any pending Firestore write when the page is hidden or unloading.
+        const cloud = { ...DEFAULT, ...(snap.data() as Partial<AppData>) };
+        const json = JSON.stringify(stripBlobs(cloud));
+        if (json === lastSeen.current) return;
+        lastSeen.current = json;
+
+        loadAllMealImages().then((images) => {
+          setData((d) => withImages(cloud, images, d.profile?.avatarDataUrl));
+        });
+      },
+      (err) => {
+        if (/unavailable/i.test(err.code)) {
+          setSyncStatus('offline');
+        } else {
+          setSyncStatus('error');
+          setSyncError(err.code);
+        }
+      },
+    );
+    return unsub;
+  }, [user]);
+
+  // localStorage every change (synchronous, instant first paint next launch),
+  // Firestore debounced. Firestore's own queue handles delivery from there.
+  useEffect(() => {
+    setStorageWarning(saveLocal(data) ? null : 'Lokální úložiště je plné. Smaž starší jídla s fotkou.');
+
+    if (!ready.current || !userRef.current) return;
+    if (writeTimer.current) clearTimeout(writeTimer.current);
+    writeTimer.current = setTimeout(() => write(dataRef.current), 400);
+  }, [data, write]);
+
+  // Flush the pending write when the page is hidden. Safe now: the write is
+  // durable in IndexedDB the moment setDoc is called, even if iOS freezes us.
   useEffect(() => {
     function flush() {
-      if (syncTimer.current) {
-        clearTimeout(syncTimer.current);
-        syncTimer.current = null;
-      }
-      if (userRef.current) {
-        // Fire-and-forget — best effort before iOS kills the page
-        saveToFirestore(userRef.current.uid, dataRef.current).catch(() => { /* logged downstream */ });
-      }
+      if (!writeTimer.current) return;
+      clearTimeout(writeTimer.current);
+      writeTimer.current = null;
+      write(dataRef.current);
     }
-    function onVisibility() {
-      if (document.visibilityState === 'hidden') flush();
-    }
-    function onOnline() {
-      // When network returns, retry any pending sync so the error banner clears.
-      if (userRef.current) pushToCloud(dataRef.current);
-    }
+    function onVisibility() { if (document.visibilityState === 'hidden') flush(); }
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('pagehide', flush);
-    window.addEventListener('online', onOnline);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', flush);
-      window.removeEventListener('online', onOnline);
     };
+  }, [write]);
+
+  const mutate = useCallback((producer: (d: AppData) => AppData) => {
+    setData((d) => producer(d));
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
@@ -339,200 +300,102 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const signOutUser = useCallback(async () => {
     await signOut(auth);
-    // Keep local data on logout
   }, []);
 
-  // Helper: apply a state mutation, suppress the debounced sync,
-  // and immediately push the resulting state to Firestore.
-  // Used by every action that creates/modifies persistent records so the
-  // cloud has the change before the user can close the app.
-  function mutateAndSync(producer: (d: AppData) => AppData) {
-    skipNextSync.current = true;
-    const next = producer(dataRef.current);
-    dataRef.current = next;
-    setData(next);
-    if (userRef.current) {
-      // Fire-and-forget — pushToCloud sets syncStatus, retries once,
-      // and surfaces failures via setSyncStatus('error').
-      pushToCloud(next);
-    }
-  }
-
   const setProfile = useCallback((profile: UserProfile) => {
-    mutateAndSync((d) => ({ ...d, profile, onboarded: true }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pushToCloud]);
+    mutate((d) => ({ ...d, profile, onboarded: true }));
+  }, [mutate]);
 
   const setApiKey = useCallback((geminiApiKey: string) => {
-    mutateAndSync((d) => ({ ...d, geminiApiKey }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pushToCloud]);
+    mutate((d) => ({ ...d, geminiApiKey }));
+  }, [mutate]);
 
   const addMeal = useCallback((meal: Meal) => {
-    // Persist image to IndexedDB before stripping from state — image
-    // is fetched back into state on next mount via loadAllMealImages.
-    if (meal.imageDataUrl) {
-      saveMealImage(meal.id, meal.imageDataUrl).catch((e) => {
-        // eslint-disable-next-line no-console
-        console.warn('[ImageStore] save failed', e);
-      });
-    }
-    mutateAndSync((d) => ({ ...d, meals: [meal, ...d.meals] }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pushToCloud]);
+    if (meal.imageDataUrl) saveMealImage(meal.id, meal.imageDataUrl).catch(() => { /* thumbnail only */ });
+    mutate((d) => ({ ...d, meals: [meal, ...d.meals] }));
+  }, [mutate]);
 
   const updateMeal = useCallback((id: string, patch: Partial<Meal>) => {
-    if (patch.imageDataUrl) {
-      saveMealImage(id, patch.imageDataUrl).catch(() => { /* ignore */ });
-    }
-    mutateAndSync((d) => ({ ...d, meals: d.meals.map((m) => (m.id === id ? { ...m, ...patch } : m)) }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pushToCloud]);
+    if (patch.imageDataUrl) saveMealImage(id, patch.imageDataUrl).catch(() => { /* thumbnail only */ });
+    mutate((d) => ({ ...d, meals: d.meals.map((m) => (m.id === id ? { ...m, ...patch } : m)) }));
+  }, [mutate]);
 
   const deleteMeal = useCallback((id: string) => {
-    deleteMealImage(id).catch(() => { /* ignore */ });
-    mutateAndSync((d) => ({ ...d, meals: d.meals.filter((m) => m.id !== id) }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pushToCloud]);
+    deleteMealImage(id).catch(() => { /* pruned later anyway */ });
+    mutate((d) => ({ ...d, meals: d.meals.filter((m) => m.id !== id) }));
+  }, [mutate]);
 
   const addActivity = useCallback((activity: Activity) => {
-    mutateAndSync((d) => ({ ...d, activities: [activity, ...d.activities] }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pushToCloud]);
+    mutate((d) => ({ ...d, activities: [activity, ...d.activities] }));
+  }, [mutate]);
 
   const deleteActivity = useCallback((id: string) => {
-    mutateAndSync((d) => ({ ...d, activities: d.activities.filter((a) => a.id !== id) }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pushToCloud]);
+    mutate((d) => ({ ...d, activities: d.activities.filter((a) => a.id !== id) }));
+  }, [mutate]);
 
   const setWater = useCallback((date: string, ml: number) => {
-    mutateAndSync((d) => ({ ...d, water: { ...(d.water ?? {}), [date]: Math.max(0, Math.round(ml)) } }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pushToCloud]);
+    mutate((d) => ({ ...d, water: { ...(d.water ?? {}), [date]: Math.max(0, Math.round(ml)) } }));
+  }, [mutate]);
+
+  // Weight is logged as a dated point so progress can be charted; the profile
+  // keeps the latest value because every target calculation reads it.
+  const setWeight = useCallback((kg: number) => {
+    const today = new Date().toISOString().slice(0, 10);
+    mutate((d) => ({
+      ...d,
+      weightLog: { ...(d.weightLog ?? {}), [today]: Math.round(kg * 10) / 10 },
+      profile: d.profile ? { ...d.profile, weightKg: Math.round(kg * 10) / 10 } : d.profile,
+    }));
+  }, [mutate]);
 
   const resetAll = useCallback(() => {
+    lastSeen.current = '';
     setData(DEFAULT);
   }, []);
 
-  // Comprehensive recovery: pulls cloud + localStorage + all daily snapshots,
-  // dedupes by ID, restores anything that's been lost from primary state.
-  // Returns total meal count and how many were recovered from snapshots.
   const reloadFromCloud = useCallback(async () => {
-    if (!userRef.current) return null;
+    const u = userRef.current;
+    if (!u) return null;
     setDataLoading(true);
     try {
-      const { data: cloud } = await loadFromFirestore(userRef.current.uid);
-      const local = loadLocal();
-      const snapshots = loadAllSnapshots();
-
-      const mealMap = new Map<string, Meal>();
-      if (cloud) cloud.meals.forEach((m) => mealMap.set(m.id, m));
-      local.meals.forEach((m) => {
-        const existing = mealMap.get(m.id);
-        mealMap.set(m.id, existing ? { ...existing, ...m } : m);
-      });
-      const beforeRecovery = mealMap.size;
-      snapshots.forEach((snap) => {
-        snap.data.meals.forEach((m) => {
-          if (!mealMap.has(m.id)) mealMap.set(m.id, m);
-        });
-      });
-      const recovered = mealMap.size - beforeRecovery;
-      const allMeals = Array.from(mealMap.values()).sort((a, b) => b.createdAt - a.createdAt);
-
-      const actMap = new Map<string, Activity>();
-      if (cloud?.activities) cloud.activities.forEach((a) => actMap.set(a.id, a));
-      (local.activities ?? []).forEach((a) => actMap.set(a.id, a));
-      snapshots.forEach((snap) => {
-        (snap.data.activities ?? []).forEach((a) => {
-          if (!actMap.has(a.id)) actMap.set(a.id, a);
-        });
-      });
-      const allActivities = Array.from(actMap.values()).sort((a, b) => b.createdAt - a.createdAt);
-
-      const snapProfile = [...snapshots].reverse().find((s) => s.data.profile)?.data.profile ?? null;
-      const profile = cloud?.profile
-        ? { ...cloud.profile, avatarDataUrl: local.profile?.avatarDataUrl ?? cloud.profile.avatarDataUrl }
-        : local.profile ?? snapProfile;
-
-      const onboarded =
-        (cloud?.onboarded ?? false) ||
-        local.onboarded ||
-        snapshots.some((s) => s.data.onboarded);
-
-      const water = {
-        ...snapshots.reduce((acc, s) => ({ ...acc, ...(s.data.water ?? {}) }), {} as Record<string, number>),
-        ...(cloud?.water ?? {}),
-        ...(local.water ?? {}),
-      };
-
-      const idbImages = await loadAllMealImages();
-      const merged: AppData = {
-        profile,
-        meals: allMeals.map((m) => ({ ...m, imageDataUrl: idbImages.get(m.id) })),
-        activities: allActivities,
-        water,
-        geminiApiKey: local.geminiApiKey || cloud?.geminiApiKey || '',
-        onboarded,
-      };
-
-      skipNextSync.current = true;
-      setData(merged);
-      // Re-upload merged so cloud now has everything (including recovered items)
-      await saveToFirestore(userRef.current.uid, merged);
-
-      return { total: allMeals.length, recovered };
+      const [snap, images] = await Promise.all([
+        getDoc(doc(db, 'users', u.uid)),
+        loadAllMealImages(),
+      ]);
+      if (!snap.exists()) return 0;
+      const cloud = { ...DEFAULT, ...(snap.data() as Partial<AppData>) };
+      const merged = mergeCloudAndLocal(cloud, dataRef.current);
+      lastSeen.current = JSON.stringify(stripBlobs(merged));
+      setData(withImages(merged, images, dataRef.current.profile?.avatarDataUrl));
+      return merged.meals.length;
     } finally {
       setDataLoading(false);
     }
   }, []);
 
-  const listSnapshots = useCallback(() => {
-    return loadAllSnapshots().map((s) => ({
-      date: s.date,
-      mealCount: s.data.meals.length,
-      savedAt: s.savedAt,
-    }));
-  }, []);
+  const forceUploadToCloud = useCallback(() => write(dataRef.current), [write]);
 
-  const restoreSnapshot = useCallback(async (date: string) => {
-    const snap = loadAllSnapshots().find((s) => s.date === date);
-    if (!snap) return false;
-    // Additive restore — merge snapshot meals INTO current state, never overwrite
-    const local = loadLocal();
-    const mealMap = new Map<string, Meal>();
-    local.meals.forEach((m) => mealMap.set(m.id, m));
-    snap.data.meals.forEach((m) => {
-      if (!mealMap.has(m.id)) mealMap.set(m.id, m);
-    });
-    const merged: AppData = {
-      ...local,
-      meals: Array.from(mealMap.values()).sort((a, b) => b.createdAt - a.createdAt),
-    };
-    skipNextSync.current = true;
-    dataRef.current = merged;
-    setData(merged);
-    if (userRef.current) await pushToCloud(merged);
-    return true;
-  }, [pushToCloud]);
-
-  const forceUploadToCloud = useCallback(async () => {
-    if (!userRef.current) return false;
-    await saveToFirestore(userRef.current.uid, data);
-    return true;
-  }, [data]);
-
-  // Periodic IDB cleanup — drop images for meals that were deleted
+  // Drop IDB images whose meal no longer exists.
   useEffect(() => {
     const id = setInterval(() => {
       pruneMealImages(new Set(dataRef.current.meals.map((m) => m.id)));
-    }, 60_000);
+    }, 120_000);
     return () => clearInterval(id);
   }, []);
 
   const value = useMemo<AppContextValue>(
-    () => ({ data, user, authLoading, dataLoading, syncStatus, storageWarning, signInWithGoogle, signOutUser, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll, reloadFromCloud, forceUploadToCloud, listSnapshots, restoreSnapshot }),
-    [data, user, authLoading, dataLoading, syncStatus, storageWarning, signInWithGoogle, signOutUser, setProfile, setApiKey, addMeal, updateMeal, deleteMeal, addActivity, deleteActivity, setWater, resetAll, reloadFromCloud, forceUploadToCloud, listSnapshots, restoreSnapshot],
+    () => ({
+      data, user, authLoading, dataLoading, syncStatus, syncError, storageWarning,
+      signInWithGoogle, signOutUser, setProfile, setApiKey,
+      addMeal, updateMeal, deleteMeal, addActivity, deleteActivity,
+      setWater, setWeight, resetAll, reloadFromCloud, forceUploadToCloud,
+    }),
+    [
+      data, user, authLoading, dataLoading, syncStatus, syncError, storageWarning,
+      signInWithGoogle, signOutUser, setProfile, setApiKey,
+      addMeal, updateMeal, deleteMeal, addActivity, deleteActivity,
+      setWater, setWeight, resetAll, reloadFromCloud, forceUploadToCloud,
+    ],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

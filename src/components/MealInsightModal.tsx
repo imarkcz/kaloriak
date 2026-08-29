@@ -9,16 +9,10 @@ interface Props {
   autoCloseMs?: number;
 }
 
-const TONE_GRADIENT: Record<MealInsight['tone'], string> = {
-  good: 'from-emerald-500/30 via-teal-500/20 to-emerald-600/30',
-  warn: 'from-amber-500/30 via-orange-500/20 to-rose-500/30',
-  neutral: 'from-coral-500/30 via-orange-500/15 to-rose-500/25',
-};
-
-const TONE_RING: Record<MealInsight['tone'], string> = {
-  good: 'ring-emerald-400/30',
-  warn: 'ring-amber-400/30',
-  neutral: 'ring-white/15',
+const TONE: Record<MealInsight['tone'], { glow: string; rim: string }> = {
+  good: { glow: '#5ecf9e', rim: 'rgba(94,207,158,0.30)' },
+  warn: { glow: '#e0a03f', rim: 'rgba(224,160,63,0.30)' },
+  neutral: { glow: '#8f69e0', rim: 'rgba(143,105,224,0.30)' },
 };
 
 export default function MealInsightModal({ insight, mealName, kcal, onClose, autoCloseMs = 4500 }: Props) {
@@ -29,44 +23,42 @@ export default function MealInsightModal({ insight, mealName, kcal, onClose, aut
   }, [insight, onClose, autoCloseMs]);
 
   if (!insight) return null;
+  const tone = TONE[insight.tone];
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center px-4 pb-safe pt-safe animate-fade-up"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center px-4 pb-safe pt-safe"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-md" />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full max-w-sm rounded-[32px] overflow-hidden ring-1 ${TONE_RING[insight.tone]} shadow-2xl shadow-black/50`}
+        className="relative w-full max-w-sm rounded-card-lg overflow-hidden p-6 reveal"
+        style={{ background: '#131215', border: `1px solid ${tone.rim}` }}
       >
-        {/* Layered gradient bg */}
-        <div className={`absolute inset-0 bg-gradient-to-br ${TONE_GRADIENT[insight.tone]}`} />
-        <div className="absolute -top-20 -left-10 w-60 h-60 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-2xl" />
+        <div
+          className="absolute rounded-full pointer-events-none"
+          style={{ top: '-40%', left: '-15%', width: '90%', height: '90%', background: tone.glow, filter: 'blur(90px)', opacity: 0.28 }}
+        />
 
-        <div className="relative p-6">
+        <div className="relative">
           <div className="flex items-start gap-4">
-            <div className="text-5xl leading-none drop-shadow">{insight.emoji}</div>
+            <div className="text-4xl leading-none">{insight.emoji}</div>
             <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">
-                Přidáno • {kcal} kcal
+              <div className="text-micro font-semibold uppercase tracking-label text-ink-mute tabular-nums">
+                Přidáno · {kcal} kcal
               </div>
-              <div className="text-lg font-extrabold text-white mt-1 leading-tight truncate">
-                {mealName}
-              </div>
+              <div className="text-h2 font-semibold text-ink mt-1 leading-tight truncate">{mealName}</div>
             </div>
           </div>
 
-          <div className="mt-5 rounded-2xl bg-white/10 backdrop-blur p-4 ring-1 ring-white/10">
-            <div className="text-base font-bold text-white">{insight.title}</div>
-            <div className="text-[13px] text-white/85 mt-1 leading-snug">{insight.message}</div>
+          <div className="mt-5 rounded-field bg-surface-2 p-4" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div className="text-h3 font-semibold text-ink">{insight.title}</div>
+            <div className="text-sm text-ink-soft mt-1.5 leading-snug">{insight.message}</div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="mt-5 w-full py-3 rounded-2xl bg-white/15 hover:bg-white/20 backdrop-blur text-white font-semibold text-sm active:scale-[0.98] transition-all"
-          >
+          <button onClick={onClose} className="btn btn-ghost w-full py-3 mt-4">
             Hotovo
           </button>
         </div>

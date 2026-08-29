@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { haptic } from '../lib/haptics';
+import Icon from './Icon';
 
 interface Props {
   value: number;
@@ -9,15 +10,12 @@ interface Props {
   step?: number;
   bigStep?: number;
   unit?: string;
-  // Optional preset chips below the stepper for quick jumps.
   presets?: number[];
-  // Compact = no preset chips, smaller padding (good in dense forms).
   compact?: boolean;
 }
 
-// Touch-friendly numeric input with −/+ buttons. Tap the number to type
-// directly via the OS keyboard. Long-press the −/+ buttons to step in
-// larger increments (bigStep, default 10× step).
+// Touch-friendly numeric input. Tap the number to type on the OS keyboard,
+// hold −/+ to auto-repeat in bigger increments.
 export default function NumStepper({
   value, onChange, min = 0, max = 9999, step = 5, bigStep, unit, presets, compact = false,
 }: Props) {
@@ -27,31 +25,30 @@ export default function NumStepper({
   const inputRef = useRef<HTMLInputElement>(null);
   const holdTimer = useRef<number | null>(null);
   const repeatTimer = useRef<number | null>(null);
+  const valueRef = useRef(value);
+  useEffect(() => { valueRef.current = value; }, [value]);
 
   useEffect(() => {
-    if (editing) {
-      setDraft(String(value));
-      // tiny delay so iOS focuses reliably
-      setTimeout(() => inputRef.current?.focus(), 30);
-    }
-  }, [editing, value]);
+    if (!editing) return;
+    setDraft(String(valueRef.current));
+    const t = setTimeout(() => inputRef.current?.focus(), 30);
+    return () => clearTimeout(t);
+  }, [editing]);
 
   function clamp(v: number) {
-    if (Number.isNaN(v)) return min;
-    return Math.max(min, Math.min(max, v));
+    return Number.isNaN(v) ? min : Math.max(min, Math.min(max, v));
   }
 
   function bump(delta: number) {
     haptic('tap');
-    onChange(clamp(value + delta));
+    onChange(clamp(valueRef.current + delta));
   }
 
-  function startHold(delta: number) {
-    // After 400 ms, auto-repeat at 80 ms with bigStep direction matching delta.
+  function startHold(dir: number) {
     holdTimer.current = window.setTimeout(() => {
-      const d = delta > 0 ? big : -big;
+      const d = dir > 0 ? big : -big;
       repeatTimer.current = window.setInterval(() => {
-        onChange((v => clamp(v + d))(value));
+        onChange(clamp(valueRef.current + d));
       }, 90) as unknown as number;
     }, 400);
   }
@@ -63,12 +60,14 @@ export default function NumStepper({
 
   function commit() {
     const n = parseFloat(draft.replace(',', '.'));
-    onChange(clamp(Number.isFinite(n) ? n : value));
+    onChange(clamp(Number.isFinite(n) ? n : valueRef.current));
     setEditing(false);
   }
 
+  const sideBtn = `${compact ? 'w-12' : 'w-14'} shrink-0 btn btn-ghost`;
+
   return (
-    <div className={`${compact ? 'space-y-2' : 'space-y-3'}`}>
+    <div className={compact ? 'space-y-2' : 'space-y-3'}>
       <div className="flex items-stretch gap-2">
         <button
           type="button"
@@ -77,17 +76,18 @@ export default function NumStepper({
           onPointerUp={endHold}
           onPointerLeave={endHold}
           onPointerCancel={endHold}
-          className={`${compact ? 'w-12' : 'w-14'} shrink-0 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 text-ink active:scale-95 active:bg-white/[0.08] transition-all flex items-center justify-center`}
+          className={sideBtn}
           aria-label="Snížit"
           disabled={value <= min}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M5 12h14"/></svg>
+          <Icon name="minus" size={18} strokeWidth={2.25} />
         </button>
 
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className={`flex-1 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 text-center ${compact ? 'py-2.5' : 'py-3.5'} active:scale-[0.99] transition-transform`}
+          className={`flex-1 rounded-field bg-surface-2 text-center ${compact ? 'py-2.5' : 'py-3.5'} transition-transform duration-200 active:scale-[0.99]`}
+          style={{ border: '1px solid rgba(255,255,255,0.08)' }}
         >
           {editing ? (
             <input
@@ -98,14 +98,14 @@ export default function NumStepper({
               onChange={(e) => setDraft(e.target.value)}
               onBlur={commit}
               onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
-              className="w-full bg-transparent outline-none text-center text-2xl font-extrabold tabular-nums text-ink"
+              className="w-full bg-transparent outline-none text-center text-h1 font-semibold tabular-nums text-ink"
             />
           ) : (
             <div className="flex items-baseline justify-center gap-1.5">
-              <span className="text-2xl font-extrabold tabular-nums text-ink leading-none">
+              <span className="text-h1 font-semibold tabular-nums text-ink leading-none">
                 {Number.isInteger(value) ? value : value.toFixed(1)}
               </span>
-              {unit && <span className="text-[11px] text-ink-mute font-semibold">{unit}</span>}
+              {unit && <span className="text-micro text-ink-mute font-medium">{unit}</span>}
             </div>
           )}
         </button>
@@ -117,11 +117,11 @@ export default function NumStepper({
           onPointerUp={endHold}
           onPointerLeave={endHold}
           onPointerCancel={endHold}
-          className={`${compact ? 'w-12' : 'w-14'} shrink-0 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 text-ink active:scale-95 active:bg-white/[0.08] transition-all flex items-center justify-center`}
+          className={sideBtn}
           aria-label="Zvýšit"
           disabled={value >= max}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          <Icon name="plus" size={18} strokeWidth={2.25} />
         </button>
       </div>
 
@@ -132,8 +132,10 @@ export default function NumStepper({
               key={p}
               type="button"
               onClick={() => { haptic('tap'); onChange(clamp(p)); }}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                Math.round(value) === p ? 'bg-grad-coral text-white' : 'bg-white/5 text-ink-soft border border-white/5'
+              className={`px-3 py-1.5 rounded-full text-micro font-medium transition-colors duration-200 ${
+                Math.round(value) === p
+                  ? 'bg-violet-500 text-white'
+                  : 'bg-surface-2 text-ink-soft border border-line'
               }`}
             >
               {p}{unit ? ` ${unit}` : ''}
