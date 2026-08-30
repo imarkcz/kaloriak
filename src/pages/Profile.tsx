@@ -8,7 +8,7 @@ import Avatar from '../components/Avatar';
 import NumStepper from '../components/NumStepper';
 
 export default function Profile() {
-  const { data, user, setProfile, resetAll, signOutUser, setWeight, reloadFromCloud, forceUploadToCloud, syncStatus } = useApp();
+  const { data, user, setProfile, resetAll, signOutUser, setWeight, reloadFromCloud, forceUploadToCloud, syncStatus, syncError } = useApp();
   const [syncMsg, setSyncMsg] = useState('');
   const [syncing, setSyncing] = useState(false);
 
@@ -286,6 +286,7 @@ export default function Profile() {
               syncing={syncing}
               syncMsg={syncMsg}
               status={syncStatus}
+              errorCode={syncError}
               onReload={handleReload}
               onUpload={handleUpload}
             />
@@ -747,13 +748,15 @@ function Stat({ label, value, unit, color, bg }: { label: string; value: number;
   );
 }
 
-function BackupCard({ syncing, syncMsg, status, onReload, onUpload }: {
+function BackupCard({ syncing, syncMsg, status, errorCode, onReload, onUpload }: {
   syncing: boolean;
   syncMsg: string;
   status: SyncStatus;
+  errorCode: string | null;
   onReload: () => void;
   onUpload: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
   const label: Record<SyncStatus, string> = {
     idle: 'Nepřihlášen',
     pending: 'Ukládám…',
@@ -777,6 +780,32 @@ function BackupCard({ syncing, syncMsg, status, onReload, onUpload }: {
         Zápisy se ukládají do telefonu okamžitě a Firestore je doručí sám, i po zavření aplikace.
         Tlačítka níž potřebuješ jen výjimečně.
       </p>
+
+      {status === 'error' && errorCode && (
+        <div className="mb-3 rounded-xl bg-red-500/10 ring-1 ring-red-500/25 p-3">
+          <p className="text-[11px] text-ink-soft leading-snug mb-2">
+            Data se ukládají do telefonu, ale do cloudu se nedostanou. Pošli mi tenhle kód,
+            podle něj se pozná příčina:
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-[13px] font-mono text-red-200 bg-black/40 rounded-lg px-2.5 py-1.5 break-all">
+              {errorCode}
+            </code>
+            <button
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(errorCode);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1800);
+                } catch { /* clipboard blocked — the code is readable above anyway */ }
+              }}
+              className="shrink-0 px-3 py-1.5 rounded-lg bg-white/10 text-ink text-[11px] font-semibold active:scale-95 transition-transform"
+            >
+              {copied ? 'Zkopírováno' : 'Kopírovat'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         <button

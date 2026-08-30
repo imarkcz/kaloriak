@@ -1,8 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { haptic } from '../lib/haptics';
+import { useApp } from '../state/AppState';
 
 export default function BottomNav() {
   const navigate = useNavigate();
+  const { syncStatus } = useApp();
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex flex-col items-center justify-center gap-0.5 px-6 py-2 rounded-full transition-all ${
@@ -38,10 +40,19 @@ export default function BottomNav() {
           <NavLink to="/profile" className={linkClass} onClick={() => haptic('tap')}>
             {({ isActive }) => (
               <>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill={isActive ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
+                <span className="relative">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill={isActive ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  {/* Cloud trouble is reported here instead of a banner over the header. */}
+                  {syncStatus === 'error' && (
+                    <span
+                      className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-black/60"
+                      aria-label="Problém se synchronizací"
+                    />
+                  )}
+                </span>
                 <span className="text-[10px] font-semibold tracking-wide">Profil</span>
               </>
             )}

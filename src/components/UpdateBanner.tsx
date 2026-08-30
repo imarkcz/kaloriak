@@ -30,8 +30,8 @@ export default function UpdateBanner() {
   if (!needRefresh || hidden) return null;
 
   return (
-    <div className="fixed top-0 inset-x-0 z-[200] pt-safe px-3 pointer-events-none">
-      <div className="max-w-md mx-auto mt-2 pointer-events-auto">
+    <div className="pt-safe px-3">
+      <div className="max-w-md mx-auto mt-2">
         <div className="relative rounded-2xl overflow-hidden ring-1 ring-white/15 shadow-2xl shadow-black/40">
           <div className="absolute inset-0 bg-gradient-to-br from-coral-500/40 via-orange-500/30 to-rose-500/40" />
           <div className="absolute inset-0 bg-black/40 backdrop-blur-2xl" />
