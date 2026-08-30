@@ -138,18 +138,6 @@ async function geminiFeedback(ctx: FeedbackContext): Promise<string> {
   return (res.text ?? '').trim();
 }
 
-async function groqFeedback(ctx: FeedbackContext): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
-  const client = new OpenAI({ apiKey, baseURL: 'https://api.groq.com/openai/v1' });
-  const res = await client.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
-    max_tokens: 120,
-    messages: [{ role: 'system', content: FEEDBACK_SYSTEM }, { role: 'user', content: buildFeedbackPrompt(ctx) }],
-  });
-  return (res.choices[0]?.message?.content ?? '').trim();
-}
-
 async function openAIFeedback(ctx: FeedbackContext): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
@@ -177,12 +165,11 @@ async function claudeFeedback(ctx: FeedbackContext): Promise<string> {
 
 async function feedbackWithFallback(ctx: FeedbackContext): Promise<string> {
   // Gemini and Claude handle Czech grammar significantly better than Llama/4o-mini,
-  // so we put them at the top. Groq/OpenAI remain as fallback if quota hits.
+  // so we put them at the top. OpenAI and Claude remain as fallback.
   const providers = [
     { name: 'gemini', fn: () => geminiFeedback(ctx) },
     { name: 'claude', fn: () => claudeFeedback(ctx) },
     { name: 'openai', fn: () => openAIFeedback(ctx) },
-    { name: 'groq',   fn: () => groqFeedback(ctx)   },
   ];
   const errors: string[] = [];
   for (const p of providers) {
@@ -196,11 +183,12 @@ async function feedbackWithFallback(ctx: FeedbackContext): Promise<string> {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`${p.name}: ${msg.substring(0, 80)}`);
-      if (isQuotaError(e) || msg.includes('not configured')) continue;
-      throw e;
+      // Always try the next provider. Whatever went wrong here — quota, a
+      // retired model id, a malformed response — the next one may still work.
+      continue;
     }
   }
-  throw new Error(`Všechny AI služby přetížené: ${errors.join(' | ')}`);
+  throw new Error(`Všechny AI služby selhaly: ${errors.join(' | ')}`);
 }
 
 function isQuotaError(e: unknown): boolean {
@@ -256,41 +244,6 @@ async function openaiCall(type: 'name' | 'image', input: { name?: string; imageB
 
   const res = await client.chat.completions.create({
     model: 'gpt-4o-mini',
-    response_format: { type: 'json_object' },
-    messages: [
-      { role: 'system', content: `${IMAGE_PROMPT}\nVrať JSON podle tvaru: ${IMAGE_JSON_SHAPE}` },
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: 'Analyzuj toto jídlo:' },
-          { type: 'image_url', image_url: { url: `data:${input.mimeType};base64,${input.imageBase64}` } },
-        ],
-      },
-    ],
-  });
-  return JSON.parse(res.choices[0]?.message?.content ?? '{}');
-}
-
-// === GROQ ===
-async function groqCall(type: 'name' | 'image', input: { name?: string; imageBase64?: string; mimeType?: string }): Promise<ProviderResult> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
-  const client = new OpenAI({ apiKey, baseURL: 'https://api.groq.com/openai/v1' });
-
-  if (type === 'name') {
-    const res = await client.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: `${NAME_PROMPT}\nVrať JSON podle tvaru: ${NAME_JSON_SHAPE}` },
-        { role: 'user', content: `Název jídla: "${input.name}"` },
-      ],
-    });
-    return JSON.parse(res.choices[0]?.message?.content ?? '{}');
-  }
-
-  const res = await client.chat.completions.create({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: `${IMAGE_PROMPT}\nVrať JSON podle tvaru: ${IMAGE_JSON_SHAPE}` },
@@ -409,7 +362,6 @@ async function translateWithFallback(name: string): Promise<string> {
 // Fallback chain — try each provider in order, skip on quota errors
 const PROVIDERS = [
   { name: 'gemini', call: geminiCall },
-  { name: 'groq',   call: groqCall   },
   { name: 'openai', call: openaiCall },
   { name: 'claude', call: claudeCall },
 ];
@@ -457,11 +409,11 @@ export default async function handler(req: any, res: any) {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`${p.name}: ${msg.substring(0, 120)}`);
-      // Skip to next provider if quota/overload, also if API key missing
-      if (isQuotaError(e) || msg.includes('not configured')) continue;
-      // Other errors (validation, safety) — fail immediately
-      return res.status(500).json({ error: msg, providersTried: errors });
+      // Always fall through. Bailing out on anything that was not a quota error
+      // meant one retired model id could take the whole feature down while two
+      // working providers waited behind it.
+      continue;
     }
   }
-  return res.status(503).json({ error: 'Všechny AI služby jsou momentálně přetížené. Zkus to za chvíli.', providersTried: errors });
+  return res.status(503).json({ error: 'AI je momentálně nedostupná. Zkus to za chvíli, nebo zadej hodnoty ručně.', providersTried: errors });
 }
