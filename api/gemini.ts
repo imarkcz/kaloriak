@@ -447,5 +447,13 @@ export default async function handler(req: any, res: any) {
       continue;
     }
   }
+  // "Nedostupná" and "limit vyčerpaný" need different advice — one means wait a
+  // minute, the other means the key is done for the day. Providers with no key
+  // configured don't get a vote.
+  const configured = errors.filter((e) => !e.includes('not configured'));
+  const allQuota = configured.length > 0 && configured.every((e) => isQuotaError(new Error(e)));
+  if (allQuota) {
+    return res.status(429).json({ error: 'Limit AI je vyčerpaný. Zkus to za pár minut, nebo zadej hodnoty ručně.', providersTried: errors });
+  }
   return res.status(503).json({ error: 'AI je momentálně nedostupná. Zkus to za chvíli, nebo zadej hodnoty ručně.', providersTried: errors });
 }

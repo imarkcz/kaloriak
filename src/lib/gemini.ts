@@ -63,6 +63,8 @@ async function callWithRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T
 export function humanizeGeminiError(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e);
   const m = raw.toLowerCase();
+  if (m.includes('vyčerpan'))
+    return 'Limit AI je vyčerpaný. Zkus to za pár minut, nebo zadej hodnoty ručně.';
   if (m.includes('všechny ai') || m.includes('přetížené'))
     return 'AI je dočasně nedostupná. Zkus to za chvíli, nebo zadej hodnoty ručně.';
   if (m.includes('503') || m.includes('unavailable') || m.includes('overloaded') || m.includes('high demand'))
