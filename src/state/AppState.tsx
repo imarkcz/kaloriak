@@ -269,7 +269,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setSyncStatus('error');
           setSyncError(err.code);
         }
-        const delay = Math.min(30_000, 2_000 * 2 ** Math.min(retries.current, 4));
+        // A denial is a config problem, not a hiccup — it will not fix itself in
+        // 30 seconds, but it does fix itself the moment the rules are published,
+        // so keep checking, just far less often.
+        const ceiling = /permission-denied|unauthenticated/i.test(err.code) ? 300_000 : 30_000;
+        const delay = Math.min(ceiling, 2_000 * 2 ** Math.min(retries.current, 8));
         retries.current += 1;
         retryTimer = setTimeout(() => setRetryTick((n) => n + 1), delay);
       },

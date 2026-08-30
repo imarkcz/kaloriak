@@ -784,8 +784,7 @@ function BackupCard({ syncing, syncMsg, status, errorCode, onReload, onUpload }:
       {status === 'error' && errorCode && (
         <div className="mb-3 rounded-xl bg-red-500/10 ring-1 ring-red-500/25 p-3">
           <p className="text-[11px] text-ink-soft leading-snug mb-2">
-            Data se ukládají do telefonu, ale do cloudu se nedostanou. Pošli mi tenhle kód,
-            podle něj se pozná příčina:
+            {explainSyncError(errorCode)}
           </p>
           <div className="flex items-center gap-2">
             <code className="flex-1 text-[13px] font-mono text-red-200 bg-black/40 rounded-lg px-2.5 py-1.5 break-all">
@@ -912,4 +911,25 @@ function WeightCard({ log, current, target, onLog }: {
       </div>
     </section>
   );
+}
+
+// Firebase error codes are useless on their own. These three cover everything
+// this app can realistically hit; anything else falls through to the raw code.
+function explainSyncError(code: string): string {
+  if (/permission-denied/i.test(code)) {
+    return 'Firestore odmítá zápis. Pravidla projektu nepouštějí ani přihlášeného '
+      + 'uživatele k jeho vlastním datům — obvykle proto, že projekt zůstal v režimu '
+      + '"production" (zakázáno všechno) nebo vypršel testovací režim s datem. '
+      + 'Oprava je v konzoli: Firestore Database → Rules → publikovat pravidla '
+      + 'ze souboru firestore.rules v repu. Data v telefonu jsou zatím v pořádku.';
+  }
+  if (/unauthenticated/i.test(code)) {
+    return 'Vypršelo přihlášení. Odhlas se dole a přihlas znovu Googlem.';
+  }
+  if (/failed-precondition/i.test(code)) {
+    return 'Prohlížeč nepustil aplikaci k lokální databázi. Nejčastěji anonymní '
+      + 'okno nebo zablokovaná data webu. Data se drží jen v paměti, dokud to trvá.';
+  }
+  return 'Data se ukládají do telefonu, ale do cloudu se nedostanou. Pošli mi tenhle kód, '
+    + 'podle něj se pozná příčina:';
 }
