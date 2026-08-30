@@ -59,7 +59,7 @@ Formát odpovědi:
 - portionDesc = porce lidskou mírou, např. "1 hluboká miska", "1 talíř", "1 řízek s bramborem".
 - Když je jídel na talíři víc, spoj je do jednoho záznamu, např. "Kuřecí s rýží a salátem".
 - Hodnoty zaokrouhli: kcal a gramy na celé číslo, makra na 1 desetinné místo.
-- confidence: high = jasně viditelná porce známého jídla, medium = běžný odhad, low = špatně viditelné nebo neznámé jídlo.\`;
+- confidence: high = jasně viditelná porce známého jídla, medium = běžný odhad, low = špatně viditelné nebo neznámé jídlo.`;
 
 const NAME_PROMPT = `Jsi nutriční expert. Z názvu jídla v češtině odhadni typické nutriční hodnoty na 100 g.
 Pravidla:
