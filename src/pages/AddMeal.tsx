@@ -7,11 +7,11 @@ import { todayISO } from '../lib/date';
 import { searchLocal, FOODS_DB } from '../lib/foodDb';
 import { searchOFF, lookupBarcode, looksForeign, type FoodSearchResult } from '../lib/foodSearch';
 import { categorize } from '../lib/foodCategory';
+import { portionRule, portionLabel } from '../lib/portion';
 import { recentFoodsFromMeals, searchRecent } from '../lib/recentFoods';
-// zxing is ~500 kB and only needed once someone taps the scan button.
+// zxing is ~440 kB and only needed once someone taps the scan button.
 const BarcodeScanner = lazy(() => import('../components/BarcodeScanner'));
 import FoodThumb from '../components/FoodThumb';
-import Icon from '../components/Icon';
 import { haptic } from '../lib/haptics';
 import { analyzeMeal, type MealInsight } from '../lib/mealInsights';
 import MealInsightModal from '../components/MealInsightModal';
@@ -92,6 +92,13 @@ export default function AddMeal() {
   const [mFat, setMFat] = useState(0);
 
   const recent = useMemo(() => recentFoodsFromMeals(data.meals, 8), [data.meals]);
+
+  // Portion unit, presets and whether a cooking method makes any sense follow
+  // what the food actually is. A cappuccino gets ml and no airfryer.
+  const photoRule = useMemo(
+    () => portionRule(categorize(photoName || analysis?.name || '')),
+    [photoName, analysis],
+  );
 
   // OFF search debounced
   useEffect(() => {
@@ -301,21 +308,21 @@ export default function AddMeal() {
       <header className="max-w-md mx-auto w-full px-5 py-4 flex items-center justify-between">
         <button
           onClick={() => (picked ? setPicked(null) : navigate(-1))}
-          className="w-10 h-10 rounded-full card flex items-center justify-center text-ink active:scale-90 transition-transform"
+          className="w-10 h-10 rounded-full glass flex items-center justify-center text-ink active:scale-90 transition-transform"
           aria-label="Zpět"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="m15 18-6-6 6-6"/>
           </svg>
         </button>
-        <h1 className="text-h3 font-semibold text-ink">{picked ? 'Upravit porci' : 'Nové jídlo'}</h1>
+        <h1 className="text-lg font-bold text-ink">{picked ? 'Upravit porci' : 'Nové jídlo'}</h1>
         <div className="w-10" />
       </header>
 
       {/* MODE TABS */}
       {showTabs && !picked && (
         <div className="max-w-md mx-auto w-full px-5 mb-4">
-          <div className="flex rounded-full p-1 bg-surface-2" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="glass rounded-full p-1 flex">
             <ModeTab active={mode === 'search'} onClick={() => setMode('search')}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
@@ -359,9 +366,9 @@ export default function AddMeal() {
 
         {/* SEARCH MODE */}
         {!picked && mode === 'search' && (
-          <div className="reveal">
+          <div className="animate-fade-up">
             {scanError && (
-              <div className="mb-3 px-4 py-3 rounded-2xl bg-danger/15 text-danger text-sm">
+              <div className="mb-3 px-4 py-3 rounded-2xl bg-red-500/15 text-red-300 text-sm">
                 {scanError}
               </div>
             )}
@@ -389,10 +396,12 @@ export default function AddMeal() {
               </div>
               <button
                 onClick={() => { setScanError(''); setScanOpen(true); }}
-                className="w-12 h-12 rounded-2xl bg-violet-500 text-white flex items-center justify-center active:scale-95 transition-transform shrink-0"
+                className="w-12 h-12 rounded-2xl bg-grad-coral text-white flex items-center justify-center shadow-coral-soft active:scale-95 transition-transform shrink-0"
                 aria-label="Skenovat čárový kód"
               >
-                <Icon name="barcode" size={20} />
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 5v3m0 11v-3m6 5v-3m0-13v3m6 13v-3m0-13v3m6 13v-3m0-10v3"/>
+                </svg>
               </button>
             </div>
 
@@ -434,7 +443,7 @@ export default function AddMeal() {
                   {searchResults.map((r) => <ResultCard key={r.id} item={r} onPick={handlePickFood} />)}
                   {offLoading && (
                     <div className="flex items-center justify-center gap-2 py-3 text-ink-soft text-xs">
-                      <svg className="animate-spin w-4 h-4 text-violet-400" viewBox="0 0 24 24" fill="none">
+                      <svg className="animate-spin w-4 h-4 text-coral-400" viewBox="0 0 24 24" fill="none">
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4" strokeDashoffset="10" strokeLinecap="round"/>
                       </svg>
                       <span>Hledám i v Open Food Facts (3M produktů)…</span>
@@ -457,7 +466,7 @@ export default function AddMeal() {
 
         {/* PHOTO MODE */}
         {!picked && mode === 'photo' && photoStage === 'pick' && (
-          <div className="reveal">
+          <div className="animate-fade-up">
             <input ref={fileInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
             <input ref={galleryInput} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
 
@@ -468,11 +477,12 @@ export default function AddMeal() {
               className="relative w-full aspect-[4/5] rounded-[36px] overflow-hidden active:scale-[0.99] transition-transform group"
               aria-label="Vyfotit jídlo"
             >
-              {/* Viewfinder ground: the same colour + blur recipe as the app background */}
-              <div className="absolute inset-0 bg-surface" />
-              <div className="glow" style={{ top: '-18%', left: '-14%', width: '72%', height: '62%', background: '#8f69e0', filter: 'blur(72px)', opacity: 0.5 }} />
-              <div className="glow" style={{ bottom: '-20%', right: '-16%', width: '76%', height: '58%', background: '#edc5fc', filter: 'blur(84px)', opacity: 0.22 }} />
-              <div className="absolute inset-0 rounded-[36px]" style={{ border: '1px solid rgba(255,255,255,0.1)' }} />
+              {/* Layered gradient mesh background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-coral-500/30 via-orange-500/15 to-rose-600/25" />
+              <div className="absolute -top-20 -left-10 w-72 h-72 rounded-full bg-coral-400/40 blur-3xl" />
+              <div className="absolute -bottom-24 -right-10 w-80 h-80 rounded-full bg-orange-500/30 blur-3xl" />
+              <div className="absolute inset-0 bg-black/30 backdrop-blur-2xl" />
+              <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-[36px]" />
 
               {/* Corner brackets — viewfinder feel */}
               <CornerBracket className="top-5 left-5" />
@@ -483,16 +493,16 @@ export default function AddMeal() {
               {/* Centered content */}
               <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-violet-500 blur-2xl opacity-60 rounded-full scale-110" />
-                  <div className="relative w-20 h-20 rounded-full bg-violet-500 flex items-center justify-center group-active:scale-95 transition-transform">
+                  <div className="absolute inset-0 bg-grad-coral blur-2xl opacity-60 rounded-full scale-110" />
+                  <div className="relative w-20 h-20 rounded-full bg-grad-coral flex items-center justify-center shadow-coral-glow group-active:scale-95 transition-transform">
                     <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                       <circle cx="12" cy="13" r="4"/>
                     </svg>
                   </div>
                 </div>
-                <h2 className="text-h2 font-semibold text-white mt-5 drop-shadow">Vyfoť své jídlo</h2>
-                <p className="text-white/75 mt-2 max-w-[18rem] text-sm leading-snug">
+                <h2 className="text-2xl font-extrabold tracking-tight text-white mt-5 drop-shadow">Vyfoť své jídlo</h2>
+                <p className="text-white/75 mt-2 max-w-[18rem] text-[13px] leading-snug">
                   AI rozpozná jídlo a odhadne kalorie i makra během pár sekund.
                 </p>
               </div>
@@ -504,7 +514,7 @@ export default function AddMeal() {
             {/* Secondary action — gallery */}
             <button
               onClick={() => { haptic('tap'); galleryInput.current?.click(); }}
-              className="mt-3 w-full py-4 rounded-2xl card text-ink font-semibold active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+              className="mt-3 w-full py-4 rounded-2xl glass text-ink font-semibold active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="3"/>
@@ -517,26 +527,26 @@ export default function AddMeal() {
         )}
 
         {!picked && mode === 'photo' && photoStage === 'analyzing' && (
-          <div className="reveal">
-            <div className="relative w-full aspect-[4/5] rounded-[36px] overflow-hidden ring-1 ring-line-2">
+          <div className="animate-fade-up">
+            <div className="relative w-full aspect-[4/5] rounded-[36px] overflow-hidden ring-1 ring-white/10">
               {imageDataUrl ? (
                 <img src={imageDataUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
               ) : (
-                <div className="absolute inset-0 bg-violet-500 opacity-30" />
+                <div className="absolute inset-0 bg-grad-coral opacity-30" />
               )}
-              {/* Frosted card overlay */}
+              {/* Frosted glass overlay */}
               <div className="absolute inset-0 bg-black/30 backdrop-blur-xl" />
               <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/40" />
 
               {/* Center spinner + text */}
               <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-violet-500 blur-2xl opacity-50 rounded-full scale-125" />
-                  <div className="relative w-20 h-20 rounded-full card flex items-center justify-center">
-                    <div className="w-12 h-12 rounded-full border-[3px] border-white/20 border-t-violet-400 animate-spin" />
+                  <div className="absolute inset-0 bg-grad-coral blur-2xl opacity-50 rounded-full scale-125" />
+                  <div className="relative w-20 h-20 rounded-full glass flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full border-[3px] border-white/20 border-t-coral-400 animate-spin" />
                   </div>
                 </div>
-                <h2 className="text-h2 font-semibold text-white mt-6 drop-shadow">Analyzuji jídlo…</h2>
+                <h2 className="text-xl font-bold text-white mt-6 drop-shadow">Analyzuji jídlo…</h2>
                 <p className="text-white/80 mt-1.5 text-sm">Moment, AI počítá kalorie.</p>
               </div>
             </div>
@@ -544,9 +554,9 @@ export default function AddMeal() {
         )}
 
         {!picked && mode === 'photo' && photoStage === 'confirm' && analysis && (
-          <div className="reveal">
+          <div className="animate-fade-up">
             {imageDataUrl && (
-              <div className="rounded-card-lg overflow-hidden aspect-square mb-4 ring-1 ring-line-2">
+              <div className="rounded-[32px] overflow-hidden aspect-square mb-4 ring-1 ring-white/10">
                 <img src={imageDataUrl} alt={analysis.name} className="w-full h-full object-cover" />
               </div>
             )}
@@ -554,33 +564,33 @@ export default function AddMeal() {
               <input
                 value={photoName}
                 onChange={(e) => setPhotoName(e.target.value)}
-                className="text-h2 font-semibold text-ink bg-transparent border-b border-white/10 focus:border-violet-400 outline-none flex-1 pb-1"
+                className="text-2xl font-extrabold tracking-tight text-ink bg-transparent border-b border-white/10 focus:border-coral-400 outline-none flex-1 pb-1"
               />
               <ConfidenceBadge level={analysis.confidence} />
             </div>
-            <p className="text-micro text-ink-mute mt-1.5">
+            <p className="text-[11px] text-ink-mute mt-1.5">
               {analysis.note ? `${analysis.note} · ` : ''}Klepni na název nebo hodnoty pro úpravu.
             </p>
             <MealTypePicker value={mealType} onChange={setMealType} />
 
-            <div className="mt-3 card p-5">
-              <div className="text-sm font-medium text-ink mb-3">Hmotnost porce</div>
+            <div className="mt-3 glass rounded-3xl p-5">
+              <div className="text-sm font-medium text-ink mb-3">{portionLabel(photoRule)}</div>
               <NumStepper
                 value={photoGrams}
                 onChange={setPhotoGrams}
                 min={5}
-                max={2000}
-                step={5}
-                bigStep={50}
-                unit="g"
-                presets={[100, 150, 200, 300, 500]}
+                max={photoRule.max}
+                step={photoRule.step}
+                bigStep={photoRule.bigStep}
+                unit={photoRule.unit}
+                presets={photoRule.presets}
               />
             </div>
 
-            <div className="mt-3 card p-5">
+            <div className={`mt-3 glass rounded-3xl p-5 ${photoRule.allowsPrep ? '' : 'hidden'}`}>
               <div className="flex items-baseline justify-between mb-3">
                 <span className="text-sm font-medium text-ink">Způsob přípravy</span>
-                <span className="text-micro text-ink-mute uppercase tracking-label">upraví tuky a kcal</span>
+                <span className="text-[10px] text-ink-mute uppercase tracking-wider">upraví tuky a kcal</span>
               </div>
               <div className="grid grid-cols-5 gap-1">
                 {(Object.keys(PREP_LABEL) as PrepMethod[]).map((p) => (
@@ -597,10 +607,10 @@ export default function AddMeal() {
                       setPhotoFat(Math.max(0, fatNew));
                       setPhotoKcal(Math.max(0, kcalNew));
                     }}
-                    className={`px-1 py-2 rounded-xl text-micro font-semibold leading-tight text-center transition-all ${
+                    className={`px-1 py-2 rounded-xl text-[10px] font-semibold leading-tight text-center transition-all ${
                       prep === p
-                        ? 'bg-violet-500 text-white'
-                        : 'bg-surface-2 text-ink-soft border border-white/5'
+                        ? 'bg-grad-coral text-white shadow-coral-soft'
+                        : 'bg-white/[0.04] text-ink-soft border border-white/5'
                     }`}
                   >
                     {PREP_LABEL[p]}
@@ -609,8 +619,8 @@ export default function AddMeal() {
               </div>
             </div>
 
-            <div className="mt-3 card p-5 space-y-4">
-              <div className="text-micro font-semibold uppercase tracking-label text-ink-mute">
+            <div className="mt-3 glass rounded-3xl p-5 space-y-4">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-ink-mute">
                 Nutriční hodnoty <span className="text-ink-mute/60 font-normal normal-case">(na celou porci, můžeš upravit)</span>
               </div>
               <NumField label="Kalorie" unit="kcal" value={photoKcal} onChange={setPhotoKcal} accent="text-ink" />
@@ -620,9 +630,9 @@ export default function AddMeal() {
             </div>
 
             {photoGrams !== analysis.grams && (
-              <div className="mt-3 card p-3 flex items-center justify-between text-xs">
+              <div className="mt-3 glass rounded-2xl p-3 flex items-center justify-between text-xs">
                 <span className="text-ink-mute">Po přepočtu na {photoGrams} g:</span>
-                <span className="font-semibold text-ink tabular-nums">
+                <span className="font-bold text-ink tabular-nums">
                   {Math.round(photoKcal * (photoGrams / analysis.grams))} kcal
                 </span>
               </div>
@@ -631,13 +641,13 @@ export default function AddMeal() {
         )}
 
         {!picked && mode === 'photo' && photoStage === 'error' && (
-          <div className="flex flex-col items-center justify-center pt-12 text-center reveal">
+          <div className="flex flex-col items-center justify-center pt-12 text-center animate-fade-up">
             <div className="text-5xl mb-3">⚠️</div>
-            <h2 className="text-h2 font-semibold text-ink">Nepovedlo se</h2>
+            <h2 className="text-xl font-bold text-ink">Nepovedlo se</h2>
             <p className="text-ink-soft mt-2 text-sm max-w-xs">{photoError}</p>
             <button
               onClick={() => { setPhotoError(''); setPhotoStage('pick'); }}
-              className="mt-6 px-6 py-3 rounded-full bg-violet-500 text-white font-semibold active:scale-95 transition-transform"
+              className="mt-6 px-6 py-3 rounded-full bg-grad-coral text-white font-semibold shadow-coral-soft active:scale-95 transition-transform"
             >
               Zkusit znovu
             </button>
@@ -646,8 +656,8 @@ export default function AddMeal() {
 
         {/* MANUAL MODE */}
         {!picked && mode === 'manual' && (
-          <div className="space-y-3 reveal">
-            <div className="card p-5 space-y-4">
+          <div className="space-y-3 animate-fade-up">
+            <div className="glass rounded-3xl p-5 space-y-4">
               <Field label="Název jídla">
                 <input className="field" placeholder="např. Kuřecí salát" value={mName} onChange={(e) => setMName(e.target.value)} />
               </Field>
@@ -656,17 +666,17 @@ export default function AddMeal() {
               </Field>
             </div>
             <MealTypePicker value={mealType} onChange={setMealType} />
-            <div className="card p-5 space-y-4">
-              <div className="text-micro font-semibold uppercase tracking-label text-ink-mute">Nutriční hodnoty</div>
+            <div className="glass rounded-3xl p-5 space-y-4">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-ink-mute">Nutriční hodnoty</div>
               <NumField label="Kalorie" unit="kcal" value={mKcal} onChange={setMKcal} accent="text-ink" />
               <NumField label="Bílkoviny" unit="g" value={mProt} onChange={setMProt} accent="text-macro-protein" />
               <NumField label="Sacharidy" unit="g" value={mCarbs} onChange={setMCarbs} accent="text-macro-carbs" />
               <NumField label="Tuky" unit="g" value={mFat} onChange={setMFat} accent="text-macro-fat" />
             </div>
             {mKcal > 0 && (
-              <div className="card p-4 flex items-center justify-between reveal">
+              <div className="glass rounded-3xl p-4 flex items-center justify-between animate-fade-up">
                 <span className="text-sm text-ink-soft">Celkem v porci</span>
-                <span className="text-h2 font-semibold tabular-nums text-ink">{Math.round(mKcal)} <span className="text-xs text-ink-mute font-medium">kcal</span></span>
+                <span className="text-2xl font-extrabold tabular-nums text-ink">{Math.round(mKcal)} <span className="text-xs text-ink-mute font-medium">kcal</span></span>
               </div>
             )}
           </div>
@@ -676,10 +686,10 @@ export default function AddMeal() {
       {/* STICKY ACTIONS */}
       {showStickyPhotoBtn && (
         <StickyBar>
-          <button onClick={() => { setPhotoStage('pick'); setAnalysis(null); setImageDataUrl(''); }} className="flex-1 py-3.5 rounded-2xl font-semibold card text-ink active:scale-[0.98] transition-transform">
+          <button onClick={() => { setPhotoStage('pick'); setAnalysis(null); setImageDataUrl(''); }} className="flex-1 py-3.5 rounded-2xl font-semibold glass text-ink active:scale-[0.98] transition-transform">
             Zahodit
           </button>
-          <button onClick={handleSavePhoto} className="flex-[2] py-3.5 rounded-2xl font-semibold bg-violet-500 text-white active:scale-[0.98] transition-transform">
+          <button onClick={handleSavePhoto} className="flex-[2] py-3.5 rounded-2xl font-semibold bg-grad-coral text-white shadow-coral-soft active:scale-[0.98] transition-transform">
             Přidat do dne
           </button>
         </StickyBar>
@@ -687,7 +697,7 @@ export default function AddMeal() {
 
       {showStickyManualBtn && (
         <StickyBar>
-          <button onClick={handleSaveManual} disabled={!mName.trim() || mKcal <= 0} className="w-full py-4 rounded-2xl font-semibold bg-violet-500 text-white active:scale-[0.98] transition-transform disabled:opacity-40 disabled:shadow-none">
+          <button onClick={handleSaveManual} disabled={!mName.trim() || mKcal <= 0} className="w-full py-4 rounded-2xl font-semibold bg-grad-coral text-white shadow-coral-soft active:scale-[0.98] transition-transform disabled:opacity-40 disabled:shadow-none">
             Přidat do dne
           </button>
         </StickyBar>
@@ -695,10 +705,10 @@ export default function AddMeal() {
 
       {showStickyPickedBtn && (
         <StickyBar>
-          <button onClick={() => setPicked(null)} className="flex-1 py-3.5 rounded-2xl font-semibold card text-ink active:scale-[0.98] transition-transform">
+          <button onClick={() => setPicked(null)} className="flex-1 py-3.5 rounded-2xl font-semibold glass text-ink active:scale-[0.98] transition-transform">
             Zpět
           </button>
-          <button onClick={handleSavePicked} className="flex-[2] py-3.5 rounded-2xl font-semibold bg-violet-500 text-white active:scale-[0.98] transition-transform">
+          <button onClick={handleSavePicked} className="flex-[2] py-3.5 rounded-2xl font-semibold bg-grad-coral text-white shadow-coral-soft active:scale-[0.98] transition-transform">
             Přidat do dne
           </button>
         </StickyBar>
@@ -709,6 +719,26 @@ export default function AddMeal() {
           <BarcodeScanner onDetected={handleBarcodeDetected} onClose={() => setScanOpen(false)} />
         </Suspense>
       )}
+
+      <style>{`
+        .field {
+          width: 100%;
+          padding: 0.75rem 1rem;
+          border-radius: 0.875rem;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.06);
+          color: #fafafa;
+          outline: none;
+          font-size: 1rem;
+          transition: all 200ms;
+        }
+        .field::placeholder { color: #71717a; }
+        .field:focus {
+          border-color: #f97366;
+          background: rgba(255,255,255,0.06);
+          box-shadow: 0 0 0 4px rgba(249,115,102,0.12);
+        }
+      `}</style>
 
       <MealInsightModal
         insight={insight}
@@ -733,41 +763,39 @@ function StickyBar({ children }: { children: React.ReactNode }) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="text-micro font-semibold uppercase tracking-label text-ink-mute px-1 pb-1 pt-2">{children}</div>;
+  return <div className="text-[11px] font-bold uppercase tracking-wider text-ink-mute px-1 pb-1 pt-2">{children}</div>;
 }
 
 function ResultCard({ item, onPick }: { item: FoodSearchResult; onPick: (i: FoodSearchResult) => void }) {
   const sourceMap = {
-    recent: { label: 'Nedávno', cls: 'bg-violet-500/15 text-violet-300' },
-    local: { label: 'CZ', cls: 'bg-ok/15 text-ok' },
+    recent: { label: 'Nedávno', cls: 'bg-coral-500/15 text-coral-300' },
+    local: { label: 'CZ', cls: 'bg-emerald-500/15 text-emerald-400' },
     off: { label: 'OFF', cls: 'bg-blue-500/15 text-blue-300' },
   } as const;
   const s = sourceMap[item.source];
-  const showBadge = item.source !== 'recent';
   return (
     <button
       onClick={() => onPick(item)}
-      className="w-full card p-3 flex gap-3 items-center text-left active:scale-[0.99] transition-transform"
+      className="w-full glass rounded-2xl p-3 flex gap-3 items-center text-left active:scale-[0.99] transition-transform"
     >
       <FoodThumb src={item.imageUrl} alt={item.name} size="sm" category={item.category ?? categorize(item.name)} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-ink truncate text-sm">{item.name}</span>
-          {showBadge && (
-            <span className={`text-micro font-medium uppercase px-1.5 py-0.5 rounded shrink-0 ${s.cls}`}>{s.label}</span>
-          )}
+          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md shrink-0 ${s.cls}`}>{s.label}</span>
         </div>
-        {item.brand && <div className="text-micro text-ink-mute truncate">{item.brand}</div>}
+        {item.brand && <div className="text-[11px] text-ink-mute truncate">{item.brand}</div>}
         <div className="text-xs text-ink-mute mt-0.5 tabular-nums">
-          <span className="text-ink font-semibold">{item.kcal}</span> kcal / 100 g
+          <span className="text-ink font-semibold">{item.kcal}</span> kcal / 100 {portionRule(item.category ?? categorize(item.name)).unit}
         </div>
       </div>
-      <Icon name="right" size={16} className="text-ink-dim shrink-0" />
+      <svg className="text-ink-mute shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
     </button>
   );
 }
 
 function PickedConfig({ picked, grams, onGramsChange, prep, onPrepChange }: { picked: FoodSearchResult; grams: number; onGramsChange: (g: number) => void; prep: PrepMethod; onPrepChange: (p: PrepMethod) => void }) {
+  const rule = portionRule(picked.category ?? categorize(picked.name));
   const hasPieces = !!picked.pieceGrams && picked.pieceGrams > 0;
   const [unitMode, setUnitMode] = useState<'pieces' | 'grams'>(hasPieces ? 'pieces' : 'grams');
   const pg = picked.pieceGrams ?? 0;
@@ -779,28 +807,28 @@ function PickedConfig({ picked, grams, onGramsChange, prep, onPrepChange }: { pi
   }
 
   return (
-    <div className="reveal">
-      <div className="card p-5 flex gap-4 items-center">
+    <div className="animate-fade-up">
+      <div className="glass rounded-3xl p-5 flex gap-4 items-center">
         <FoodThumb src={picked.imageUrl} alt={picked.name} size="lg" category={picked.category ?? categorize(picked.name)} />
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-ink leading-tight text-h3">{picked.name}</div>
+          <div className="font-extrabold text-ink leading-tight text-lg">{picked.name}</div>
           {picked.brand && <div className="text-xs text-ink-mute mt-0.5">{picked.brand}</div>}
-          <div className="text-xs text-ink-mute mt-1 tabular-nums">{picked.kcal} kcal / 100 g</div>
+          <div className="text-xs text-ink-mute mt-1 tabular-nums">{picked.kcal} kcal / 100 {rule.unit}</div>
         </div>
       </div>
 
-      <div className="mt-3 card p-5">
+      <div className="mt-3 glass rounded-3xl p-5">
         {hasPieces && (
-          <div className="flex gap-1 p-1 rounded-full bg-surface-2 ring-1 ring-line mb-4">
+          <div className="flex gap-1 p-1 rounded-full bg-white/5 ring-1 ring-white/5 mb-4">
             <button
               onClick={() => setUnitMode('pieces')}
-              className={`flex-1 py-1.5 rounded-full text-xs font-semibold transition-all ${unitMode === 'pieces' ? 'bg-violet-500 text-white' : 'text-ink-soft'}`}
+              className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all ${unitMode === 'pieces' ? 'bg-grad-coral text-white shadow-coral-soft' : 'text-ink-soft'}`}
             >
               Počet ks
             </button>
             <button
               onClick={() => setUnitMode('grams')}
-              className={`flex-1 py-1.5 rounded-full text-xs font-semibold transition-all ${unitMode === 'grams' ? 'bg-violet-500 text-white' : 'text-ink-soft'}`}
+              className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all ${unitMode === 'grams' ? 'bg-grad-coral text-white shadow-coral-soft' : 'text-ink-soft'}`}
             >
               Gramy
             </button>
@@ -811,7 +839,7 @@ function PickedConfig({ picked, grams, onGramsChange, prep, onPrepChange }: { pi
           <>
             <div className="flex justify-between items-baseline">
               <span className="text-sm font-semibold text-ink">Počet</span>
-              <span className="text-h2 font-semibold tabular-nums text-ink">
+              <span className="text-2xl font-extrabold tabular-nums text-ink">
                 {pieces % 1 === 0 ? pieces : pieces.toFixed(1)}{' '}
                 <span className="text-sm text-ink-soft font-semibold">{pluralPiece(picked.pieceLabel ?? 'ks', pieces)}</span>
               </span>
@@ -820,7 +848,7 @@ function PickedConfig({ picked, grams, onGramsChange, prep, onPrepChange }: { pi
               <button
                 onClick={() => setPieces(pieces - 1)}
                 disabled={pieces <= 1}
-                className="w-12 h-12 rounded-full bg-white/8 text-ink text-h2 font-semibold active:scale-90 transition-transform disabled:opacity-30 ring-1 ring-line-2"
+                className="w-12 h-12 rounded-full bg-white/8 text-ink text-xl font-bold active:scale-90 transition-transform disabled:opacity-30 ring-1 ring-white/10"
                 aria-label="Méně"
               >
                 −
@@ -837,7 +865,7 @@ function PickedConfig({ picked, grams, onGramsChange, prep, onPrepChange }: { pi
               />
               <button
                 onClick={() => setPieces(pieces + 1)}
-                className="w-12 h-12 rounded-full bg-white/8 text-ink text-h2 font-semibold active:scale-90 transition-transform ring-1 ring-line-2"
+                className="w-12 h-12 rounded-full bg-white/8 text-ink text-xl font-bold active:scale-90 transition-transform ring-1 ring-white/10"
                 aria-label="Více"
               >
                 +
@@ -849,44 +877,44 @@ function PickedConfig({ picked, grams, onGramsChange, prep, onPrepChange }: { pi
                   key={n}
                   onClick={() => setPieces(n)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                    Math.abs(pieces - n) < 0.01 ? 'bg-violet-500 text-white' : 'bg-surface-2 text-ink-soft border border-white/5'
+                    Math.abs(pieces - n) < 0.01 ? 'bg-grad-coral text-white' : 'bg-white/5 text-ink-soft border border-white/5'
                   }`}
                 >
                   {n}× {picked.pieceLabel ?? 'ks'}
                 </button>
               ))}
             </div>
-            <div className="text-micro text-ink-mute mt-3 tabular-nums">≈ {grams} g celkem</div>
+            <div className="text-[10px] text-ink-mute mt-3 tabular-nums">≈ {grams} {rule.unit} celkem</div>
           </>
         ) : (
           <>
-            <div className="text-sm font-semibold text-ink mb-3">Hmotnost porce</div>
+            <div className="text-sm font-semibold text-ink mb-3">{portionLabel(rule)}</div>
             <NumStepper
               value={grams}
               onChange={onGramsChange}
               min={5}
-              max={2000}
-              step={5}
-              bigStep={50}
-              unit="g"
-              presets={[50, 100, 150, 200, 300]}
+              max={rule.max}
+              step={rule.step}
+              bigStep={rule.bigStep}
+              unit={rule.unit}
+              presets={rule.presets}
             />
           </>
         )}
       </div>
 
-      <div className="mt-3 card p-4">
-        <div className="text-micro font-semibold uppercase tracking-label text-ink-mute mb-3">Způsob přípravy</div>
+      <div className={`mt-3 glass rounded-3xl p-4 ${rule.allowsPrep ? '' : 'hidden'}`}>
+        <div className="text-[11px] font-bold uppercase tracking-wider text-ink-mute mb-3">Způsob přípravy</div>
         <div className="grid grid-cols-5 gap-1">
           {(Object.keys(PREP_LABEL) as PrepMethod[]).map((p) => (
             <button
               key={p}
               type="button"
               onClick={() => { haptic('tap'); onPrepChange(p); }}
-              className={`px-1 py-2 rounded-xl text-micro font-semibold leading-tight text-center transition-all ${
+              className={`px-1 py-2 rounded-xl text-[10px] font-semibold leading-tight text-center transition-all ${
                 prep === p
-                  ? 'bg-violet-500 text-white'
-                  : 'bg-surface-2 text-ink-soft border border-white/5'
+                  ? 'bg-grad-coral text-white shadow-coral-soft'
+                  : 'bg-white/[0.04] text-ink-soft border border-white/5'
               }`}
             >
               {PREP_LABEL[p]}
@@ -934,12 +962,7 @@ function pluralPiece(singular: string, n: number): string {
 
 function ModeTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex-1 min-w-0 basis-0 flex items-center justify-center gap-1.5 py-2.5 rounded-full text-sm font-medium transition-colors duration-200 ${
-        active ? 'bg-violet-500 text-white' : 'text-ink-soft'
-      }`}
-    >
+    <button onClick={onClick} className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full text-sm font-semibold transition-all ${active ? 'bg-grad-coral text-white shadow-coral-soft' : 'text-ink-soft'}`}>
       {children}
     </button>
   );
@@ -948,7 +971,7 @@ function ModeTab({ active, onClick, children }: { active: boolean; onClick: () =
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-micro font-semibold uppercase tracking-label text-ink-mute mb-2">{label}</span>
+      <span className="block text-[11px] font-bold uppercase tracking-wider text-ink-mute mb-2">{label}</span>
       {children}
     </label>
   );
@@ -959,7 +982,7 @@ function NumField({ label, unit, value, onChange, accent }: { label: string; uni
     <label className="flex items-center justify-between gap-3">
       <span className={`text-sm font-semibold ${accent}`}>{label}</span>
       <div className="flex items-center gap-1.5">
-        <input type="number" inputMode="decimal" min={0} value={value || ''} onChange={(e) => onChange(Number(e.target.value) || 0)} className="w-20 px-3 py-1.5 rounded-lg bg-surface-2 border border-white/10 text-right tabular-nums text-ink text-sm font-semibold focus:border-violet-500 outline-none" placeholder="0" />
+        <input type="number" inputMode="decimal" min={0} value={value || ''} onChange={(e) => onChange(Number(e.target.value) || 0)} className="w-20 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-right tabular-nums text-ink text-sm font-bold focus:border-coral-500 outline-none" placeholder="0" />
         <span className="text-xs text-ink-mute w-7">{unit}</span>
       </div>
     </label>
@@ -968,8 +991,8 @@ function NumField({ label, unit, value, onChange, accent }: { label: string; uni
 
 function MealTypePicker({ value, onChange }: { value: MealType; onChange: (v: MealType) => void }) {
   return (
-    <div className="card p-4">
-      <div className="text-micro font-semibold uppercase tracking-label text-ink-mute mb-3">Kdy jíš?</div>
+    <div className="glass rounded-3xl p-4">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-ink-mute mb-3">Zařadit do</div>
       <div className="grid grid-cols-4 gap-1.5">
         {MEAL_TYPE_ORDER.map((t) => {
           const m = MEAL_TYPE_META[t];
@@ -979,13 +1002,13 @@ function MealTypePicker({ value, onChange }: { value: MealType; onChange: (v: Me
               key={t}
               type="button"
               onClick={() => { haptic('tap'); onChange(t); }}
-              className="rounded-field py-2.5 px-1 flex flex-col items-center gap-0.5 transition-colors duration-200"
-              style={active
-                ? { background: '#8f69e0', color: '#fff' }
-                : { background: '#1a181d', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.08)' }}
+              className={`relative rounded-2xl py-2.5 px-1 flex flex-col items-center gap-1 overflow-hidden transition-all ${
+                active ? 'ring-1 ring-white/15 shadow-coral-soft' : 'bg-white/[0.04] border border-white/5'
+              }`}
             >
-              <span className="text-sm font-medium leading-none">{m.label}</span>
-              <span className={`text-micro tabular-nums leading-none ${active ? 'text-white/70' : 'text-ink-dim'}`}>{m.range}</span>
+              {active && <span className={`absolute inset-0 bg-gradient-to-br ${m.tint}`} />}
+              <span className="relative text-xl leading-none">{m.icon}</span>
+              <span className={`relative text-[10px] font-bold leading-none ${active ? 'text-white' : 'text-ink-soft'}`}>{m.label}</span>
             </button>
           );
         })}
@@ -1013,12 +1036,12 @@ function CornerBracket({ className = '' }: { className?: string }) {
 
 function ConfidenceBadge({ level }: { level: 'low' | 'medium' | 'high' }) {
   const map = {
-    high: { bg: 'bg-ok/15', text: 'text-ok', label: 'Jistý odhad' },
-    medium: { bg: 'bg-warn/15', text: 'text-warn', label: 'Přibližný' },
-    low: { bg: 'bg-danger/15', text: 'text-danger', label: 'Nejistý' },
+    high: { bg: 'bg-emerald-500/15', text: 'text-emerald-400', label: 'Jistý odhad' },
+    medium: { bg: 'bg-amber-500/15', text: 'text-amber-400', label: 'Přibližný' },
+    low: { bg: 'bg-red-500/15', text: 'text-red-400', label: 'Nejistý' },
   };
   const s = map[level];
-  return <span className={`text-micro font-semibold uppercase tracking-label px-2.5 py-1 rounded-full shrink-0 ${s.bg} ${s.text}`}>{s.label}</span>;
+  return <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shrink-0 ${s.bg} ${s.text}`}>{s.label}</span>;
 }
 
 function ScaledStats({ picked, grams }: { picked: FoodSearchResult; grams: number }) {
@@ -1029,9 +1052,9 @@ function ScaledStats({ picked, grams }: { picked: FoodSearchResult; grams: numbe
   const f = +(picked.fat_g * ratio).toFixed(1);
   return (
     <div className="mt-3 grid grid-cols-2 gap-3">
-      <div className="bg-violet-500 rounded-card p-4 text-white">
-        <div className="text-micro opacity-90 uppercase tracking-label font-semibold">Kalorie</div>
-        <div className="text-4xl font-semibold tabular-nums mt-1 leading-none">{kcal}</div>
+      <div className="bg-grad-coral rounded-3xl p-4 text-white shadow-coral-soft">
+        <div className="text-[11px] opacity-90 uppercase tracking-wider font-bold">Kalorie</div>
+        <div className="text-4xl font-extrabold tabular-nums mt-1 leading-none">{kcal}</div>
         <div className="text-xs opacity-90 mt-1">kcal</div>
       </div>
       <div className="grid grid-cols-1 gap-2">
@@ -1057,7 +1080,7 @@ function AiEstimateBlock({
   onEstimate: () => void;
 }) {
   return (
-    <div className={`${hasResults ? 'mt-4' : 'mt-2'} reveal`}>
+    <div className={`${hasResults ? 'mt-4' : 'mt-2'} animate-fade-up`}>
       {!hasResults && (
         <div className="text-center py-6 text-ink-mute text-sm">
           Nic nenalezeno v databázi.
@@ -1066,9 +1089,9 @@ function AiEstimateBlock({
       <button
         onClick={onEstimate}
         disabled={loading}
-        className="w-full card p-3.5 flex items-center gap-3 active:scale-[0.99] transition-transform disabled:opacity-60"
+        className="w-full glass rounded-2xl p-3.5 flex items-center gap-3 active:scale-[0.99] transition-transform disabled:opacity-60"
       >
-        <div className="w-10 h-10 rounded-xl bg-violet-500 flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-grad-coral flex items-center justify-center shrink-0 shadow-coral-soft">
           {loading ? (
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
@@ -1078,10 +1101,10 @@ function AiEstimateBlock({
           )}
         </div>
         <div className="flex-1 text-left min-w-0">
-          <div className="text-sm font-semibold text-ink truncate">
+          <div className="text-sm font-bold text-ink truncate">
             {loading ? 'AI počítá…' : `Odhadnout pomocí AI: "${query}"`}
           </div>
-          <div className="text-micro text-ink-mute">
+          <div className="text-[11px] text-ink-mute">
             {loading ? 'může to trvat pár sekund' : 'Gemini odhadne kcal a makra na 100 g'}
           </div>
         </div>
@@ -1090,14 +1113,14 @@ function AiEstimateBlock({
         )}
       </button>
       {error && (
-        <div className="mt-2 px-3 py-2.5 rounded-xl bg-danger/15 text-danger text-xs flex items-start gap-2">
+        <div className="mt-2 px-3 py-2.5 rounded-xl bg-red-500/15 text-red-300 text-xs flex items-start gap-2">
           <svg className="shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
           </svg>
           <span className="flex-1 leading-relaxed">{error}</span>
           <button
             onClick={onEstimate}
-            className="text-violet-300 font-semibold underline-offset-2 hover:underline shrink-0"
+            className="text-coral-300 font-bold underline-offset-2 hover:underline shrink-0"
           >
             Zkusit znovu
           </button>
@@ -1110,8 +1133,8 @@ function AiEstimateBlock({
 function MacroMini({ label, value, color, bg }: { label: string; value: number; color: string; bg: string }) {
   return (
     <div className={`rounded-2xl px-3 py-1.5 flex items-center justify-between ${bg}`}>
-      <span className="text-micro text-ink-soft font-medium">{label}</span>
-      <span className={`font-semibold tabular-nums text-sm ${color}`}>{value} g</span>
+      <span className="text-[11px] text-ink-soft font-medium">{label}</span>
+      <span className={`font-bold tabular-nums text-sm ${color}`}>{value} g</span>
     </div>
   );
 }

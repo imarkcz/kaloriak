@@ -5,7 +5,6 @@ import type { ActivityLevel, Goal, Intensity, Sex } from '../types';
 import { ACTIVITY_FACTORS, ACTIVITY_LABELS, GOAL_LABELS, INTENSITY_DETAIL, INTENSITY_KCAL, INTENSITY_LABEL, computeTargets, dynamicDailyTargets, mifflinStJeor } from '../lib/tdee';
 import { useNavigate } from 'react-router-dom';
 import Avatar from '../components/Avatar';
-import Icon, { type IconName } from '../components/Icon';
 import NumStepper from '../components/NumStepper';
 
 export default function Profile() {
@@ -17,7 +16,7 @@ export default function Profile() {
     setSyncing(true);
     setSyncMsg('');
     const count = await reloadFromCloud();
-    setSyncMsg(count === null ? 'Musíš být přihlášen' : `Načteno ${count} jídel`);
+    setSyncMsg(count === null ? 'Musíš být přihlášen' : `✓ Načteno ${count} jídel`);
     setSyncing(false);
     setTimeout(() => setSyncMsg(''), 4000);
   }
@@ -26,7 +25,7 @@ export default function Profile() {
     setSyncing(true);
     setSyncMsg('');
     const ok = await forceUploadToCloud();
-    setSyncMsg(ok ? 'Nahráno do cloudu' : 'Nahrání selhalo');
+    setSyncMsg(ok ? '✓ Data nahrána do cloudu' : 'Nahrání selhalo');
     setSyncing(false);
     setTimeout(() => setSyncMsg(''), 3000);
   }
@@ -126,14 +125,14 @@ export default function Profile() {
 
   return (
     <div className="min-h-dvh pt-safe pb-32">
-      <header className="max-w-md mx-auto px-5 pt-5 pb-3 reveal">
-        <h1 className="text-h1 font-semibold text-ink">Profil</h1>
+      <header className="max-w-md mx-auto px-5 pt-5 pb-3 animate-fade-up">
+        <h1 className="text-3xl font-extrabold tracking-tight text-ink">Profil</h1>
         <p className="text-ink-soft text-sm mt-1">Uprav své údaje.</p>
       </header>
 
       <main className="max-w-md mx-auto px-5 space-y-3">
         {/* Avatar hero */}
-        <section className="card p-5 flex items-center gap-5 reveal">
+        <section className="glass rounded-3xl p-5 flex items-center gap-5 animate-fade-up">
           <Avatar
             src={avatarDataUrl}
             name={name || p.name}
@@ -143,8 +142,8 @@ export default function Profile() {
             onRemove={() => setAvatarDataUrl(undefined)}
           />
           <div className="min-w-0 flex-1">
-            <div className="text-micro font-semibold uppercase tracking-label text-ink-mute">profil</div>
-            <div className="text-h2 font-semibold text-ink truncate mt-0.5">
+            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-ink-mute">profil</div>
+            <div className="text-2xl font-extrabold tracking-tight text-ink truncate mt-0.5">
               {name || p.name || 'Já'}
             </div>
             <div className="text-xs text-ink-mute mt-1 tabular-nums">
@@ -184,7 +183,7 @@ export default function Profile() {
               ))}
             </div>
             {useDynamicTdee && (
-              <p className="text-micro text-ink-mute mt-2 leading-snug">
+              <p className="text-[11px] text-ink-mute mt-2 leading-snug">
                 Tvoje úroveň aktivity tvoří základ denního cíle. Logované tréninky se přičítají navíc.
               </p>
             )}
@@ -208,12 +207,12 @@ export default function Profile() {
                     onClick={() => { haptic('tap'); setIntensity(i); }}
                     className={`px-2 py-2.5 rounded-2xl font-semibold text-xs transition-all ${
                       intensity === i
-                        ? 'bg-violet-500 text-white'
-                        : 'bg-surface-2 text-ink-soft border border-white/5'
+                        ? 'bg-grad-coral text-white shadow-coral-soft'
+                        : 'bg-white/[0.04] text-ink-soft border border-white/5'
                     }`}
                   >
                     <div className="leading-none">{INTENSITY_LABEL[i]}</div>
-                    <div className={`text-micro mt-1 font-medium tabular-nums ${intensity === i ? 'text-white/85' : 'text-ink-mute'}`}>
+                    <div className={`text-[9px] mt-1 font-medium tabular-nums ${intensity === i ? 'text-white/85' : 'text-ink-mute'}`}>
                       {INTENSITY_DETAIL[goal][i]}
                     </div>
                   </button>
@@ -230,9 +229,9 @@ export default function Profile() {
         </Card>
 
         <Card title="Denní cíl (přepočteno)">
-          <div className="bg-violet-500 rounded-2xl p-4 -m-1 mb-1">
-            <div className="text-micro uppercase tracking-label text-white/80 font-semibold">Kalorie</div>
-            <div className="text-4xl font-semibold tabular-nums text-white mt-1 leading-none">{targets.kcal}</div>
+          <div className="bg-grad-coral rounded-2xl p-4 -m-1 mb-1 shadow-coral-soft">
+            <div className="text-[11px] uppercase tracking-wider text-white/80 font-bold">Kalorie</div>
+            <div className="text-4xl font-extrabold tabular-nums text-white mt-1 leading-none">{targets.kcal}</div>
             <div className="text-xs text-white/80 mt-1">kcal / den</div>
           </div>
           <div className="grid grid-cols-3 gap-2 mt-3">
@@ -264,16 +263,17 @@ export default function Profile() {
           onLog={(kg) => { setWeight(kg); setWeightKg(kg); }}
         />
 
+
         <button
           onClick={handleSave}
-          className="w-full py-4 rounded-2xl bg-violet-500 text-white font-semibold active:scale-[0.98] transition-transform mt-2"
+          className="w-full py-4 rounded-2xl bg-grad-coral text-white font-semibold shadow-coral-soft active:scale-[0.98] transition-transform mt-2"
         >
           {saved ? '✓ Uloženo' : 'Uložit změny'}
         </button>
 
         <button
           onClick={handleReset}
-          className="w-full py-3 rounded-2xl text-danger text-sm font-medium active:scale-95 transition-transform"
+          className="w-full py-3 rounded-2xl text-red-400 text-sm font-medium active:scale-95 transition-transform"
         >
           Smazat všechna data
         </button>
@@ -282,7 +282,7 @@ export default function Profile() {
 
         {user && (
           <>
-            <SyncCard
+            <BackupCard
               syncing={syncing}
               syncMsg={syncMsg}
               status={syncStatus}
@@ -300,10 +300,30 @@ export default function Profile() {
           </>
         )}
 
-        <p className="text-center text-micro text-ink-mute pt-2 font-mono tabular-nums">
+        <p className="text-center text-[10px] text-ink-mute pt-2 font-mono tabular-nums">
           Kaloriak • build {__BUILD_ID__}
         </p>
       </main>
+
+      <style>{`
+        .field {
+          width: 100%;
+          padding: 0.75rem 1rem;
+          border-radius: 0.875rem;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.06);
+          color: #fafafa;
+          outline: none;
+          font-size: 1rem;
+          transition: all 200ms;
+        }
+        .field::placeholder { color: #71717a; }
+        .field:focus {
+          border-color: #f97366;
+          background: rgba(255,255,255,0.06);
+          box-shadow: 0 0 0 4px rgba(249,115,102,0.12);
+        }
+      `}</style>
     </div>
   );
 }
@@ -319,6 +339,7 @@ function CalcBreakdown({
   const tdee = Math.round(bmr * factor);
   const adjust = INTENSITY_KCAL[goal][intensity];
   const isLose = adjust < 0;
+  const isGain = adjust > 0;
   const total = Math.max(1200, tdee + adjust);
 
   const goalLabel = goal === 'maintain'
@@ -330,46 +351,42 @@ function CalcBreakdown({
 
   return (
     <div className="mt-4 space-y-2">
-      <p className="text-micro font-semibold uppercase tracking-label text-ink-mute px-1">Jak jsme to spočítali</p>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-ink-mute px-1">Jak jsme to spočítali</p>
 
       <div className="grid grid-cols-3 gap-2">
-        <Tile icon="flame" label="Klidový metabolismus" value={bmr} unit="kcal" />
-        <Tile icon="activity" label="Po aktivitě" value={tdee} unit="kcal" />
-        <Tile icon="chart" label="Tvůj cíl" value={total} unit="kcal" highlight />
+        <Tile icon="🔥" label="Klidový metabolismus" value={bmr} unit="kcal" />
+        <Tile icon="🏃" label="Po aktivitě" value={tdee} unit="kcal" />
+        <Tile icon={isLose ? '📉' : isGain ? '📈' : '⚖️'} label="Tvůj cíl" value={total} unit="kcal" highlight />
       </div>
 
-      <div className="card p-3.5 flex items-center gap-3">
-        <span className="w-9 h-9 rounded-xl bg-surface-2 flex items-center justify-center text-violet-300 shrink-0"
-              style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
-          <Icon name="chart" size={17} />
-        </span>
+      <div className="rounded-2xl glass p-3.5 flex items-center gap-3">
+        <div className="text-2xl leading-none">{isLose ? '📉' : isGain ? '📈' : '⚖️'}</div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-ink leading-tight">{goalLabel}</div>
-          <div className="text-micro text-ink-mute mt-0.5">{adjustText}</div>
+          <div className="text-[13px] font-semibold text-ink leading-tight">{goalLabel}</div>
+          <div className="text-[11px] text-ink-mute mt-0.5">{adjustText}</div>
         </div>
       </div>
     </div>
   );
 }
 
-function Tile({ icon, label, value, unit, highlight = false }: {
-  icon: IconName; label: string; value: number; unit: string; highlight?: boolean;
-}) {
+function Tile({ icon, label, value, unit, highlight = false }: { icon: string; label: string; value: number; unit: string; highlight?: boolean }) {
   return (
-    <div
-      className="rounded-field p-3.5"
-      style={highlight
-        ? { background: '#8f69e0' }
-        : { background: '#1a181d', border: '1px solid rgba(255,255,255,0.07)' }}
-    >
-      <span className={highlight ? 'text-white/80' : 'text-violet-300'}>
-        <Icon name={icon} size={16} />
-      </span>
-      <div className={`text-micro leading-tight mt-2 ${highlight ? 'text-white/80' : 'text-ink-mute'}`}>{label}</div>
-      <div className={`text-h2 font-semibold tabular-nums mt-1 leading-none ${highlight ? 'text-white' : 'text-ink'}`}>
-        {value}
+    <div className={`relative rounded-2xl p-3 overflow-hidden ${highlight ? '' : 'bg-white/[0.04] ring-1 ring-white/5'}`}>
+      {highlight && (
+        <>
+          <div className="absolute inset-0 bg-grad-coral opacity-95" />
+          <div className="absolute inset-0 bg-black/15" />
+        </>
+      )}
+      <div className="relative">
+        <div className="text-base leading-none mb-1.5">{icon}</div>
+        <div className={`text-[10px] uppercase tracking-wider font-bold leading-tight ${highlight ? 'text-white/90' : 'text-ink-mute'}`}>{label}</div>
+        <div className={`text-xl font-extrabold tabular-nums mt-1 leading-none ${highlight ? 'text-white' : 'text-ink'}`}>
+          {value}
+        </div>
+        <div className={`text-[10px] mt-0.5 ${highlight ? 'text-white/80' : 'text-ink-mute'}`}>{unit}</div>
       </div>
-      <div className={`text-micro mt-1 ${highlight ? 'text-white/70' : 'text-ink-dim'}`}>{unit}</div>
     </div>
   );
 }
@@ -412,14 +429,14 @@ function MacroSplitCard({
   ];
 
   return (
-    <section className="card p-5 reveal">
+    <section className="glass rounded-3xl p-5 animate-fade-up">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-micro font-semibold uppercase tracking-label text-ink-mute">Rozložení makroživin</h2>
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-ink-mute">Rozložení makroživin</h2>
         <button
           type="button"
           onClick={() => { haptic('tap'); onChange(enabled ? undefined : current); }}
-          className={`text-micro font-semibold px-3 py-1.5 rounded-full transition-all ${
-            enabled ? 'bg-violet-500 text-white' : 'bg-surface-2 text-ink-soft ring-1 ring-line-2'
+          className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-all ${
+            enabled ? 'bg-grad-coral text-white shadow-coral-soft' : 'bg-white/[0.06] text-ink-soft ring-1 ring-white/10'
           }`}
         >
           {enabled ? 'Vlastní' : 'Automatické'}
@@ -434,13 +451,13 @@ function MacroSplitCard({
 
       {enabled && (
         <div className="space-y-4">
-          <MacroSlider label="Bílkoviny" pct={current.proteinPct} grams={protein_g} accent="bg-macro-protein" textColor="text-macro-protein" onChange={(v) => setPct('proteinPct', v)} />
-          <MacroSlider label="Sacharidy" pct={current.carbsPct}   grams={carbs_g}   accent="bg-macro-carbs"   textColor="text-macro-carbs"   onChange={(v) => setPct('carbsPct', v)} />
-          <MacroSlider label="Tuky"      pct={current.fatPct}     grams={fat_g}     accent="bg-macro-fat"     textColor="text-macro-fat"     onChange={(v) => setPct('fatPct', v)} />
+          <MacroSlider label="Bílkoviny" pct={current.proteinPct} grams={protein_g} accent="bg-grad-protein" textColor="text-macro-protein" onChange={(v) => setPct('proteinPct', v)} />
+          <MacroSlider label="Sacharidy" pct={current.carbsPct}   grams={carbs_g}   accent="bg-grad-carbs"   textColor="text-macro-carbs"   onChange={(v) => setPct('carbsPct', v)} />
+          <MacroSlider label="Tuky"      pct={current.fatPct}     grams={fat_g}     accent="bg-grad-fat"     textColor="text-macro-fat"     onChange={(v) => setPct('fatPct', v)} />
 
           <div className="flex items-center justify-between pt-1 border-t border-white/5">
-            <span className="text-micro text-ink-mute">Součet</span>
-            <span className={`text-xs font-semibold tabular-nums ${current.proteinPct + current.carbsPct + current.fatPct === 100 ? 'text-ok' : 'text-warn'}`}>
+            <span className="text-[11px] text-ink-mute">Součet</span>
+            <span className={`text-xs font-bold tabular-nums ${current.proteinPct + current.carbsPct + current.fatPct === 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
               {current.proteinPct + current.carbsPct + current.fatPct} %
             </span>
           </div>
@@ -451,7 +468,7 @@ function MacroSplitCard({
                 key={p.name}
                 type="button"
                 onClick={() => { haptic('tap'); onChange({ proteinPct: p.p, carbsPct: p.c, fatPct: p.f }); }}
-                className="px-3 py-1.5 rounded-full text-micro font-semibold bg-surface-2 text-ink-soft border border-white/5 active:scale-95 transition-transform"
+                className="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-white/5 text-ink-soft border border-white/5 active:scale-95 transition-transform"
               >
                 {p.name}
               </button>
@@ -471,18 +488,18 @@ function MacroSlider({ label, pct, grams, accent, textColor, onChange }: {
       <div className="flex items-baseline justify-between mb-2">
         <span className={`text-sm font-semibold ${textColor}`}>{label}</span>
         <div className="flex items-baseline gap-2">
-          <span className="text-base font-semibold tabular-nums text-ink">{pct}%</span>
-          <span className="text-micro text-ink-mute tabular-nums">{grams} g</span>
+          <span className="text-base font-bold tabular-nums text-ink">{pct}%</span>
+          <span className="text-[11px] text-ink-mute tabular-nums">{grams} g</span>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <button type="button" onClick={() => onChange(pct - 5)} className="w-9 h-9 rounded-full bg-surface-2 ring-1 ring-line-2 text-ink active:scale-90 transition-transform shrink-0 flex items-center justify-center" aria-label="Méně">
+        <button type="button" onClick={() => onChange(pct - 5)} className="w-9 h-9 rounded-full bg-white/[0.05] ring-1 ring-white/10 text-ink active:scale-90 transition-transform shrink-0 flex items-center justify-center" aria-label="Méně">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M5 12h14"/></svg>
         </button>
-        <div className="flex-1 h-2 rounded-full bg-surface-2 overflow-hidden">
+        <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
           <div className={`h-full ${accent} rounded-full transition-all`} style={{ width: `${pct}%` }} />
         </div>
-        <button type="button" onClick={() => onChange(pct + 5)} className="w-9 h-9 rounded-full bg-surface-2 ring-1 ring-line-2 text-ink active:scale-90 transition-transform shrink-0 flex items-center justify-center" aria-label="Více">
+        <button type="button" onClick={() => onChange(pct + 5)} className="w-9 h-9 rounded-full bg-white/[0.05] ring-1 ring-white/10 text-ink active:scale-90 transition-transform shrink-0 flex items-center justify-center" aria-label="Více">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
         </button>
       </div>
@@ -531,34 +548,41 @@ function UpdateCard() {
   }
 
   return (
-    <section className="card p-5">
-      <h3 className="text-h3 font-semibold text-ink">Verze aplikace</h3>
-      <p className="text-sm text-ink-mute mt-1.5 leading-snug">
-        Novou verzi ohlásí proužek nahoře. Když máš pocit, že ti visí stará, vynuť stažení.
+    <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-4 mt-2 space-y-2">
+      <h3 className="text-sm font-bold text-ink mb-1">Verze aplikace</h3>
+      <p className="text-xs text-ink-soft mb-2">
+        Pokud je k dispozici novější verze, objeví se nahoře oranžový pruh „Aktualizovat". Pokud máš pocit, že máš starou verzi, použij dole „Vynutit aktualizaci".
       </p>
-      <div className="grid grid-cols-2 gap-2 mt-4">
-        <button onClick={check} disabled={status === 'checking'} className="btn btn-ghost py-2.5 text-sm">
-          {status === 'checking' ? (
-            <><Icon name="refresh" size={15} className="animate-spin-slow" />Hledám</>
-          ) : status === 'uptodate' ? (
-            <><Icon name="check" size={15} />Aktuální</>
-          ) : (
-            <><Icon name="refresh" size={15} />Zkontrolovat</>
-          )}
-        </button>
-        <button onClick={hardReset} className="btn btn-ghost py-2.5 text-sm">
-          <Icon name="trash" size={15} />
-          Smazat cache
-        </button>
-      </div>
-    </section>
+      <button
+        onClick={check}
+        disabled={status === 'checking'}
+        className="w-full py-2.5 rounded-xl bg-white/5 ring-1 ring-white/10 text-ink text-xs font-semibold active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+      >
+        {status === 'checking' ? (
+          <>
+            <span className="inline-block w-3 h-3 border-2 border-white/30 border-t-coral-400 rounded-full animate-spin" />
+            Hledám aktualizace…
+          </>
+        ) : status === 'uptodate' ? (
+          '✓ Máš aktuální verzi'
+        ) : (
+          '🔄 Hledat aktualizace'
+        )}
+      </button>
+      <button
+        onClick={hardReset}
+        className="w-full py-2.5 rounded-xl bg-amber-500/15 ring-1 ring-amber-400/30 text-amber-300 text-xs font-semibold active:scale-95 transition-transform flex items-center justify-center gap-2"
+      >
+        ⚡ Vynutit aktualizaci (smaže cache)
+      </button>
+    </div>
   );
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="card p-5 reveal">
-      <h2 className="text-micro font-semibold uppercase tracking-label text-ink-mute mb-4">{title}</h2>
+    <section className="glass rounded-3xl p-5 animate-fade-up">
+      <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-ink-mute mb-4">{title}</h2>
       <div className="space-y-4">{children}</div>
     </section>
   );
@@ -606,7 +630,7 @@ function Slider({
     <label className="block" onClick={activate}>
       <div className="flex justify-between items-baseline mb-1">
         <span className="text-sm font-medium text-ink-soft">{label}</span>
-        <span className="text-sm font-semibold tabular-nums text-ink">{value.toFixed(decimals)} <span className="text-xs text-ink-mute font-medium">{unit}</span></span>
+        <span className="text-sm font-bold tabular-nums text-ink">{value.toFixed(decimals)} <span className="text-xs text-ink-mute font-medium">{unit}</span></span>
       </div>
       <div className="relative">
         <input
@@ -631,7 +655,7 @@ function Slider({
         />
         {!active && (
           <div className="absolute inset-0 flex items-center justify-end pr-1 pointer-events-none">
-            <span className="text-micro text-ink-mute bg-surface-2 px-2 py-0.5 rounded-full">klepni pro úpravu</span>
+            <span className="text-[10px] text-ink-mute bg-white/5 px-2 py-0.5 rounded-full">klepni pro úpravu</span>
           </div>
         )}
       </div>
@@ -646,8 +670,8 @@ function Choice({ active, onClick, children, full }: { active: boolean; onClick:
       onClick={() => { haptic('tap'); onClick(); }}
       className={`${full ? 'w-full text-left px-4' : 'px-3'} py-2.5 rounded-xl font-semibold text-sm transition-all ${
         active
-          ? 'bg-violet-500 text-white'
-          : 'bg-surface-2 text-ink-soft border border-white/5'
+          ? 'bg-grad-coral text-white shadow-coral-soft'
+          : 'bg-white/[0.04] text-ink-soft border border-white/5'
       }`}
     >
       {children}
@@ -658,100 +682,23 @@ function Choice({ active, onClick, children, full }: { active: boolean; onClick:
 function WeightDelta({ current, target }: { current: number; target: number }) {
   const delta = +(target - current).toFixed(1);
   if (Math.abs(delta) < 0.1) {
-    return <p className="text-sm text-ok">Jsi přesně na svém cíli.</p>;
+    return (
+      <div className="rounded-2xl px-4 py-2.5 bg-emerald-500/10 ring-1 ring-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+        <span className="text-base leading-none">🎯</span>
+        Jsi přesně na svém cíli.
+      </div>
+    );
   }
+  const lose = delta < 0;
   return (
-    <p className="text-sm text-ink-mute tabular-nums">
-      {delta < 0 ? 'Zhubnout' : 'Nabrat'}{' '}
-      <strong className="text-violet-300 font-semibold">{Math.abs(delta).toFixed(1)} kg</strong> do cíle.
-    </p>
-  );
-}
-
-// Weight is the one honest feedback loop when losing or gaining, so it gets a
-// dated log and a 7-day moving average rather than a single overwritten number.
-function WeightCard({ log, current, target, onLog }: {
-  log: Record<string, number>;
-  current: number;
-  target: number;
-  onLog: (kg: number) => void;
-}) {
-  const [draft, setDraft] = useState(current);
-  const points = Object.entries(log).sort(([a], [b]) => a.localeCompare(b));
-  const today = new Date().toISOString().slice(0, 10);
-  const loggedToday = today in log;
-
-  const recent = points.slice(-7).map(([, kg]) => kg);
-  const avg = recent.length ? recent.reduce((s, v) => s + v, 0) / recent.length : current;
-  const first = points.length ? points[0][1] : current;
-  const change = +(current - first).toFixed(1);
-
-  // Sparkline over the last 30 entries.
-  const series = points.slice(-30).map(([, kg]) => kg);
-  const lo = Math.min(...series, target, current);
-  const hi = Math.max(...series, target, current);
-  const span = Math.max(0.5, hi - lo);
-  const path = series.length > 1
-    ? series.map((kg, i) => {
-        const x = 1 + (i / (series.length - 1)) * 98;
-        const y = 30 - ((kg - lo) / span) * 26 - 2;
-        return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`;
-      }).join(' ')
-    : '';
-
-  return (
-    <section className="card p-5">
-      <div className="flex items-baseline justify-between mb-1">
-        <h2 className="text-micro font-semibold uppercase tracking-label text-ink-mute">Váha</h2>
-        {points.length > 1 && (
-          <span className="text-micro tabular-nums text-ink-mute">
-            {change > 0 ? '+' : ''}{change} kg od začátku
-          </span>
-        )}
-      </div>
-
-      <div className="flex items-baseline gap-2">
-        <span className="text-hero font-semibold tabular-nums text-ink leading-none">{current.toFixed(1)}</span>
-        <span className="text-base text-ink-mute">kg</span>
-        <span className="flex-1" />
-        <span className="text-micro text-ink-dim tabular-nums">cíl {target.toFixed(1)} kg</span>
-      </div>
-
-      {series.length > 1 ? (
-        <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="w-full h-16 mt-4" aria-hidden="true">
-          <defs>
-            <linearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#8f69e0" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#8f69e0" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d={`${path} L99,30 L1,30 Z`} fill="url(#weightFill)" stroke="none" />
-          <path d={path} fill="none" stroke="#b9a3ff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-          <circle
-            cx="99"
-            cy={30 - ((series[series.length - 1] - lo) / span) * 26 - 2}
-            r="2"
-            fill="#b9a3ff"
-          />
-        </svg>
-      ) : (
-        <p className="text-micro text-ink-dim mt-4">Zapiš váhu pár dní po sobě a uvidíš tady křivku.</p>
-      )}
-
-      <p className="text-micro text-ink-mute mt-1 tabular-nums">
-        Průměr posledních {recent.length || 1}: <span className="text-ink-soft">{avg.toFixed(1)} kg</span>
-      </p>
-
-      <div className="mt-4">
-        <NumStepper value={draft} onChange={setDraft} min={30} max={250} step={0.1} bigStep={1} unit="kg" compact />
-        <button
-          onClick={() => { onLog(draft); haptic('success'); }}
-          className="btn btn-primary w-full py-3 mt-2"
-        >
-          {loggedToday ? 'Přepsat dnešní váhu' : 'Zapsat dnešní váhu'}
-        </button>
-      </div>
-    </section>
+    <div className={`rounded-2xl px-4 py-2.5 ring-1 text-xs flex items-center gap-2 ${
+      lose ? 'bg-coral-500/10 ring-coral-500/20 text-coral-300' : 'bg-violet-500/10 ring-violet-500/20 text-violet-300'
+    }`}>
+      <span className="text-base leading-none">{lose ? '🔻' : '🔺'}</span>
+      <span className="tabular-nums">
+        {lose ? 'Zhubnout' : 'Nabrat'} <strong>{Math.abs(delta).toFixed(1)} kg</strong> do cíle.
+      </span>
+    </div>
   );
 }
 
@@ -767,10 +714,10 @@ function ToggleRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="rounded-2xl bg-surface-2 ring-1 ring-line p-3.5 flex items-center gap-3">
+    <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-3.5 flex items-center gap-3">
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold text-ink">{label}</div>
-        {description && <div className="text-micro text-ink-mute mt-0.5 leading-relaxed">{description}</div>}
+        {description && <div className="text-[11px] text-ink-mute mt-0.5 leading-relaxed">{description}</div>}
       </div>
       <button
         type="button"
@@ -778,7 +725,7 @@ function ToggleRow({
         aria-checked={value}
         onClick={() => onChange(!value)}
         className={`relative w-[52px] h-8 rounded-full transition-colors shrink-0 ring-1 ${
-          value ? 'bg-violet-500 ring-white/20' : 'bg-white/10 ring-white/10'
+          value ? 'bg-grad-coral shadow-coral-soft ring-white/20' : 'bg-white/10 ring-white/10'
         }`}
       >
         <span
@@ -793,14 +740,14 @@ function ToggleRow({
 function Stat({ label, value, unit, color, bg }: { label: string; value: number; unit: string; color: string; bg: string }) {
   return (
     <div className={`rounded-2xl p-3 text-center ${bg}`}>
-      <div className={`tabular-nums text-h2 font-semibold leading-none ${color}`}>{value}</div>
-      <div className="text-micro text-ink-mute uppercase tracking-label mt-1.5 font-semibold">{label}</div>
-      <div className="text-micro text-ink-mute">{unit}</div>
+      <div className={`tabular-nums text-xl font-extrabold leading-none ${color}`}>{value}</div>
+      <div className="text-[10px] text-ink-mute uppercase tracking-wider mt-1.5 font-semibold">{label}</div>
+      <div className="text-[10px] text-ink-mute">{unit}</div>
     </div>
   );
 }
 
-function SyncCard({ syncing, syncMsg, status, onReload, onUpload }: {
+function BackupCard({ syncing, syncMsg, status, onReload, onUpload }: {
   syncing: boolean;
   syncMsg: string;
   status: SyncStatus;
@@ -811,41 +758,129 @@ function SyncCard({ syncing, syncMsg, status, onReload, onUpload }: {
     idle: 'Nepřihlášen',
     pending: 'Ukládám…',
     synced: 'Vše uložené v cloudu',
-    offline: 'Offline, doručí se samo',
+    offline: 'Offline — doručí se samo',
     error: 'Cloud odmítá zápis',
   };
-  const colour: Record<SyncStatus, string> = {
+  const tone: Record<SyncStatus, string> = {
     idle: 'text-ink-mute',
-    pending: 'text-violet-300',
-    synced: 'text-ok',
+    pending: 'text-coral-300',
+    synced: 'text-emerald-400',
     offline: 'text-ink-mute',
-    error: 'text-danger',
+    error: 'text-red-400',
   };
 
   return (
-    <section className="card p-5">
-      <div className="flex items-center gap-2.5 mb-1.5">
-        <span className={colour[status]}><Icon name="cloud" size={17} /></span>
-        <h3 className="text-h3 font-semibold text-ink">Synchronizace</h3>
-      </div>
-      <p className={`text-sm ${colour[status]}`}>{label[status]}</p>
-      <p className="text-micro text-ink-mute mt-2 leading-snug">
+    <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/5 p-4 mt-2">
+      <h3 className="text-sm font-bold text-ink mb-1">Záloha dat</h3>
+      <p className={`text-xs mb-2 ${tone[status]}`}>{label[status]}</p>
+      <p className="text-xs text-ink-soft mb-3">
         Zápisy se ukládají do telefonu okamžitě a Firestore je doručí sám, i po zavření aplikace.
         Tlačítka níž potřebuješ jen výjimečně.
       </p>
 
-      <div className="grid grid-cols-2 gap-2 mt-4">
-        <button onClick={onReload} disabled={syncing} className="btn btn-ghost py-2.5 text-sm">
-          <Icon name="refresh" size={15} className={syncing ? 'animate-spin-slow' : ''} />
-          Načíst
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={onReload}
+          disabled={syncing}
+          className="py-3 rounded-xl bg-coral-500/15 ring-1 ring-coral-400/30 text-coral-200 text-sm font-semibold active:scale-95 transition-transform disabled:opacity-50"
+        >
+          {syncing ? 'Obnovuji…' : 'Načíst z cloudu'}
         </button>
-        <button onClick={onUpload} disabled={syncing} className="btn btn-ghost py-2.5 text-sm">
-          <Icon name="cloud" size={15} />
-          Nahrát
+        <button
+          onClick={onUpload}
+          disabled={syncing}
+          className="py-3 rounded-xl bg-white/[0.03] ring-1 ring-white/5 text-ink-soft text-sm font-semibold active:scale-95 transition-transform disabled:opacity-50"
+        >
+          Nahrát do cloudu
         </button>
       </div>
 
-      {syncMsg && <p className="text-center text-micro text-ink-mute mt-2.5">{syncMsg}</p>}
+      {syncMsg && (
+        <p className={`text-center text-xs mt-2 ${syncMsg.startsWith('✓') ? 'text-emerald-400' : 'text-amber-400'}`}>
+          {syncMsg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Weight is the honest feedback loop when losing or gaining, so it gets a dated
+// log and a moving average instead of one number that keeps getting overwritten.
+function WeightCard({ log, current, target, onLog }: {
+  log: Record<string, number>;
+  current: number;
+  target: number;
+  onLog: (kg: number) => void;
+}) {
+  const [draft, setDraft] = useState(current);
+  const points = Object.entries(log).sort(([a], [b]) => a.localeCompare(b));
+  const today = new Date().toISOString().slice(0, 10);
+  const loggedToday = today in log;
+
+  const recent = points.slice(-7).map(([, kg]) => kg);
+  const avg = recent.length ? recent.reduce((sum, v) => sum + v, 0) / recent.length : current;
+  const first = points.length ? points[0][1] : current;
+  const change = +(current - first).toFixed(1);
+
+  const series = points.slice(-30).map(([, kg]) => kg);
+  const lo = Math.min(...series, target, current);
+  const hi = Math.max(...series, target, current);
+  const span = Math.max(0.5, hi - lo);
+  const path = series.length > 1
+    ? series.map((kg, i) => {
+        const x = 1 + (i / (series.length - 1)) * 98;
+        const y = 30 - ((kg - lo) / span) * 26 - 2;
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`;
+      }).join(' ')
+    : '';
+
+  return (
+    <section className="glass rounded-3xl p-5 animate-fade-up">
+      <div className="flex items-baseline justify-between mb-1">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-ink-mute">Váha</h2>
+        {points.length > 1 && (
+          <span className="text-[11px] tabular-nums text-ink-mute">
+            {change > 0 ? '+' : ''}{change} kg od začátku
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-baseline gap-2">
+        <span className="text-4xl font-extrabold tabular-nums text-ink leading-none">{current.toFixed(1)}</span>
+        <span className="text-sm text-ink-soft">kg</span>
+        <span className="flex-1" />
+        <span className="text-[11px] text-ink-mute tabular-nums">cíl {target.toFixed(1)} kg</span>
+      </div>
+
+      {series.length > 1 ? (
+        <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="w-full h-16 mt-4" aria-hidden="true">
+          <defs>
+            <linearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f97366" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#f97366" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={`${path} L99,30 L1,30 Z`} fill="url(#weightFill)" stroke="none" />
+          <path d={path} fill="none" stroke="#ffa089" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          <circle cx="99" cy={30 - ((series[series.length - 1] - lo) / span) * 26 - 2} r="2" fill="#ffc6b8" />
+        </svg>
+      ) : (
+        <p className="text-[11px] text-ink-mute mt-4">Zapiš váhu pár dní po sobě a uvidíš tady křivku.</p>
+      )}
+
+      <p className="text-[11px] text-ink-mute mt-1 tabular-nums">
+        Průměr posledních {recent.length || 1}: <span className="text-ink-soft">{avg.toFixed(1)} kg</span>
+      </p>
+
+      <div className="mt-4">
+        <NumStepper value={draft} onChange={setDraft} min={30} max={250} step={0.1} bigStep={1} unit="kg" compact />
+        <button
+          onClick={() => { onLog(draft); haptic('success'); }}
+          className="w-full mt-2 py-3 rounded-2xl bg-grad-coral text-white font-semibold shadow-coral-soft active:scale-[0.98] transition-transform"
+        >
+          {loggedToday ? 'Přepsat dnešní váhu' : 'Zapsat dnešní váhu'}
+        </button>
+      </div>
     </section>
   );
 }

@@ -2,16 +2,15 @@ import type { MealType } from '../types';
 
 export const MEAL_TYPE_ORDER: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner'];
 
-// Label plus the window it covers. The time range carries more information than
-// the sunrise/moon emoji it replaces, and renders the same on every platform.
-export const MEAL_TYPE_META: Record<MealType, { label: string; range: string }> = {
-  breakfast: { label: 'Snídaně', range: '5–10' },
-  lunch: { label: 'Oběd', range: '10–14' },
-  snack: { label: 'Svačina', range: '14–17' },
-  dinner: { label: 'Večeře', range: '17–23' },
+export const MEAL_TYPE_META: Record<MealType, { label: string; icon: string; tint: string }> = {
+  breakfast: { label: 'Snídaně', icon: '🌅', tint: 'from-amber-500/55 to-orange-400/40' },
+  lunch:     { label: 'Oběd',    icon: '☀️', tint: 'from-yellow-400/55 to-amber-500/40' },
+  snack:     { label: 'Svačina', icon: '🥨', tint: 'from-rose-500/50 to-pink-400/40' },
+  dinner:    { label: 'Večeře',  icon: '🌙', tint: 'from-indigo-400/50 to-violet-500/40' },
 };
 
-// Default meal type from the local clock, so logging is one tap shorter.
+// Default meal type from current local time. Used as initial selection when
+// the user opens the Add screen so most logging is one tap less.
 export function defaultMealTypeForNow(d: Date = new Date()): MealType {
   const h = d.getHours();
   if (h >= 5 && h < 10) return 'breakfast';
@@ -21,7 +20,7 @@ export function defaultMealTypeForNow(d: Date = new Date()): MealType {
   return 'snack';
 }
 
-// Meals saved before mealType existed: infer from createdAt.
+// For meals saved before mealType existed: infer from createdAt.
 export function resolveMealType(m: { mealType?: MealType; createdAt: number }): MealType {
   return m.mealType ?? defaultMealTypeForNow(new Date(m.createdAt));
 }

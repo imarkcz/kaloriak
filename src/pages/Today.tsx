@@ -1,5 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useApp } from '../state/AppState';
+import { todayISO, formatDateLabel } from '../lib/date';
+import ProgressRing from '../components/ProgressRing';
+import MacroPie, { MacroLegend } from '../components/MacroPie';
+import FoodThumb from '../components/FoodThumb';
 import { Link } from 'react-router-dom';
+import { ACTIVITY_LABEL } from '../lib/activityKcal';
+import WaterTracker from '../components/WaterTracker';
+import { dynamicDailyTargets } from '../lib/tdee';
+import Avatar from '../components/Avatar';
+import EditMealSheet from '../components/EditMealSheet';
+import type { Meal, MealType } from '../types';
+import { MEAL_TYPE_META, MEAL_TYPE_ORDER, resolveMealType } from '../lib/mealType';
+import { categorize } from '../lib/foodCategory';
+import { getDailyFeedback, type FeedbackContext } from '../lib/gemini';
 import {
   DndContext, DragOverlay, PointerSensor, TouchSensor,
   useSensor, useSensors, useDroppable, useDraggable,
@@ -8,32 +22,15 @@ import {
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 
-import { useApp } from '../state/AppState';
-import { todayISO, formatDateLabel } from '../lib/date';
-import { dynamicDailyTargets } from '../lib/tdee';
-import { ACTIVITY_LABEL } from '../lib/activityKcal';
-import { categorize } from '../lib/foodCategory';
-import { recentFoodsFromMeals } from '../lib/recentFoods';
-import { MEAL_TYPE_META, MEAL_TYPE_ORDER, defaultMealTypeForNow, resolveMealType } from '../lib/mealType';
-import { getDailyFeedback, type FeedbackContext } from '../lib/gemini';
-import { haptic } from '../lib/haptics';
-import type { Meal, MealType } from '../types';
-import type { FoodSearchResult } from '../lib/foodSearch';
-
-import ProgressRing from '../components/ProgressRing';
-import MacroBar from '../components/MacroBar';
-import WaterTracker from '../components/WaterTracker';
-import FoodThumb from '../components/FoodThumb';
-import Avatar from '../components/Avatar';
-import EditMealSheet from '../components/EditMealSheet';
-import Icon from '../components/Icon';
-
 export default function Today() {
-  const { data, addMeal, deleteMeal, updateMeal, deleteActivity, setWater } = useApp();
+  const { data, deleteMeal, updateMeal, deleteActivity, setWater } = useApp();
   const [date, setDate] = useState(() => todayISO());
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
+  // PointerSensor handles mouse + touch + stylus via Pointer Events API.
+  // touch-action:none on the grip button ensures scroll doesn't interfere
+  // on iOS/Android. TouchSensor as fallback for older mobile browsers.
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 5 } }),
@@ -51,11 +48,14 @@ export default function Today() {
     updateMeal(active.id as string, { mealType: targetType });
   }
 
-  // Snap back to today when the app returns from the background, so opening it
-  // the next morning does not leave you on yesterday.
+  // Reset to today when the app becomes visible again (PWA returns from
+  // background, browser tab refocused). Without this, opening the app the
+  // next morning leaves the user on yesterday's date.
   useEffect(() => {
     function onVisible() {
-      if (document.visibilityState === 'visible') setDate(todayISO());
+      if (document.visibilityState === 'visible') {
+        setDate(todayISO());
+      }
     }
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
@@ -84,123 +84,238 @@ export default function Today() {
     };
   }, [data.activities, date]);
 
-  const recent = useMemo(() => recentFoodsFromMeals(data.meals, 6), [data.meals]);
-
   const profile = data.profile;
   const baseTargets = profile?.targets ?? { kcal: 2000, protein_g: 150, carbs_g: 220, fat_g: 65 };
   const targets = profile?.useDynamicTdee
     ? dynamicDailyTargets(profile.sex, profile.weightKg, profile.heightCm, profile.age, profile.activity, profile.goal, burned, profile.goalIntensity ?? 'moderate', profile.customMacroSplit)
     : { ...baseTargets, kcal: baseTargets.kcal + burned };
 
-  const isToday = date === todayISO();
+  const waterMl = data.water?.[date] ?? 0;
+  const waterGoalMl = 2000;
 
   function shiftDay(delta: number) {
     const [y, m, d] = date.split('-').map(Number);
     const nd = new Date(y, m - 1, d + delta);
-    setDate(`${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, '0')}-${String(nd.getDate()).padStart(2, '0')}`);
-  }
-
-  // One tap re-logs something already eaten before, at its usual portion.
-  function quickAdd(r: FoodSearchResult) {
-    haptic('success');
-    const grams = r.defaultGrams || 100;
-    const ratio = grams / (r.per || 100);
-    addMeal({
-      id: crypto.randomUUID(),
-      date: todayISO(),
-      createdAt: Date.now(),
-      name: r.name,
-      grams,
-      kcal: Math.round(r.kcal * ratio),
-      protein_g: +(r.protein_g * ratio).toFixed(1),
-      carbs_g: +(r.carbs_g * ratio).toFixed(1),
-      fat_g: +(r.fat_g * ratio).toFixed(1),
-      mealType: defaultMealTypeForNow(),
-      imageDataUrl: r.imageUrl,
-    });
+    const iso = `${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, '0')}-${String(nd.getDate()).padStart(2, '0')}`;
+    setDate(iso);
   }
 
   return (
     <div className="min-h-dvh pt-safe pb-32">
-      <header className="max-w-md mx-auto px-5 pt-5 pb-5 flex items-center justify-between reveal">
-        <Link to="/profile" className="flex items-center gap-3 transition-transform duration-200 active:scale-[0.98]" aria-label="Otevřít profil">
-          <Avatar src={profile?.avatarDataUrl} name={profile?.name} size={42} />
+      <header className="max-w-md mx-auto px-5 pt-5 pb-4 flex items-center justify-between animate-fade-up">
+        <Link to="/profile" className="flex items-center gap-3 active:scale-[0.98] transition-transform" aria-label="Otevřít profil">
+          <Avatar src={profile?.avatarDataUrl} name={profile?.name} size={44} />
           <div>
-            <div className="text-micro text-ink-mute">{profile?.name ?? 'Ahoj'}</div>
-            <h1 className="text-h1 font-semibold text-ink capitalize leading-tight">{formatDateLabel(date)}</h1>
+            <div className="text-[10px] text-ink-mute uppercase tracking-[0.22em] font-bold">
+              Ahoj, {profile?.name ?? 'uživateli'}
+            </div>
+            <h1 className="text-2xl font-extrabold tracking-tight capitalize text-ink leading-tight">
+              {formatDateLabel(date)}
+            </h1>
           </div>
         </Link>
         <div className="flex gap-1.5">
-          <IconBtn onClick={() => shiftDay(-1)} label="Předchozí den"><Icon name="left" size={17} /></IconBtn>
-          <IconBtn onClick={() => shiftDay(1)} label="Další den" disabled={isToday}><Icon name="right" size={17} /></IconBtn>
+          <IconBtn onClick={() => shiftDay(-1)} ariaLabel="Předchozí den">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="m15 18-6-6 6-6"/></svg>
+          </IconBtn>
+          <IconBtn onClick={() => shiftDay(1)} ariaLabel="Další den" disabled={date >= todayISO()}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="m9 18 6-6-6-6"/></svg>
+          </IconBtn>
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-5 space-y-3.5">
+      <main className="max-w-md mx-auto px-5 space-y-4">
+        {/* HERO RING */}
+        <section
+          className="glass rounded-[32px] p-6 flex flex-col items-center animate-pop"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(16px) saturate(160%) brightness(1.04)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%) brightness(1.04)',
+            borderTop: '1px solid rgba(255,255,255,0.22)',
+            borderLeft: '1px solid rgba(255,255,255,0.12)',
+            borderRight: '1px solid rgba(255,255,255,0.08)',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            boxShadow:
+              '0 -1px 0 rgba(0,0,0,0.18) inset,' +
+              '0 24px 70px -16px rgba(0,0,0,0.65),' +
+              '0 2px 10px rgba(0,0,0,0.25)',
+          }}
+        >
+          <ProgressRing
+            value={kcal}
+            target={targets.kcal}
+            size={224}
+            stroke={12}
+            hint={
+              profile?.useDynamicTdee
+                ? burned > 0
+                  ? `dynamický cíl · BMR + ${burned} kcal z aktivit`
+                  : 'dynamický cíl · zatím bez tréninku'
+                : burned > 0
+                  ? `cíl ${baseTargets.kcal} + ${burned} kcal z aktivit`
+                  : undefined
+            }
+          />
+          <div className="mt-5 w-full border-t border-white/[0.07] pt-4 grid grid-cols-3">
+            <HeroStat label="Snědeno" value={Math.round(kcal)} unit="kcal" />
+            <HeroStat label="Spáleno" value={burned} unit="kcal" accent="text-emerald-300" divider />
+            <HeroStat
+              label="Netto"
+              value={Math.round(kcal - burned)}
+              unit="kcal"
+              accent={kcal - burned > baseTargets.kcal ? 'text-red-300' : undefined}
+              divider
+            />
+          </div>
+        </section>
 
-        {/* HERO — answers "how much can I still have" */}
-        <section className="card card-lit p-6 flex flex-col items-center reveal" style={{ '--i': 1 } as React.CSSProperties}>
-          <ProgressRing eaten={kcal} target={targets.kcal} size={216} stroke={10} />
-          <p className="mt-5 text-sm text-ink-mute tabular-nums text-center">
-            {Math.round(kcal)} snědeno
-            {burned > 0 && <> · {burned} spáleno</>}
-            {' · cíl '}{targets.kcal}
-          </p>
-          {profile?.useDynamicTdee && (
-            <p className="mt-1 text-micro text-ink-dim text-center">
-              {burned > 0 ? 'dynamický cíl, tréninky se přičítají' : 'dynamický cíl, zatím bez tréninku'}
-            </p>
+        {/* MACRO PILLS */}
+        <section className="grid grid-cols-3 gap-2.5 animate-fade-up">
+          <MacroPill
+            label="Bílkoviny"
+            value={protein}
+            target={targets.protein_g}
+            gradient="bg-grad-protein"
+          />
+          <MacroPill
+            label="Sacharidy"
+            value={carbs}
+            target={targets.carbs_g}
+            gradient="bg-grad-carbs"
+          />
+          <MacroPill
+            label="Tuky"
+            value={fat}
+            target={targets.fat_g}
+            gradient="bg-grad-fat"
+          />
+        </section>
+
+        {/* PIE CARD */}
+        <section className="glass rounded-3xl p-5 animate-fade-up">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-bold text-ink">Rozložení dne</h2>
+              <p className="text-[11px] text-ink-mute mt-0.5">poměr makroživin v kaloriích</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-5">
+            <MacroPie protein={protein} carbs={carbs} fat={fat} size={120} />
+            <div className="flex-1 min-w-0">
+              <MacroLegend protein={protein} carbs={carbs} fat={fat} />
+            </div>
+          </div>
+        </section>
+
+        {/* WATER */}
+        <WaterTracker
+          ml={waterMl}
+          goalMl={waterGoalMl}
+          servingMl={250}
+          onAdd={(d) => setWater(date, waterMl + d)}
+          onRemove={(d) => setWater(date, Math.max(0, waterMl - d))}
+        />
+
+        {/* AI FEEDBACK */}
+        <DailyFeedbackCard
+          date={date}
+          kcal={kcal}
+          protein={protein}
+          carbs={carbs}
+          fat={fat}
+          targets={targets}
+          meals={meals}
+          goal={profile?.goal ?? 'maintain'}
+          sex={profile?.sex ?? 'male'}
+        />
+
+        {/* ACTIVITIES */}
+        <section className="animate-fade-up">
+          <div className="flex items-baseline justify-between px-1 mb-3">
+            <h2 className="font-bold text-lg text-ink">Aktivity</h2>
+            <Link
+              to="/activity"
+              className="text-xs font-semibold text-coral-300 active:scale-95 transition-transform inline-flex items-center gap-1"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Přidat
+            </Link>
+          </div>
+          {activities.length === 0 ? (
+            <Link
+              to="/activity"
+              className="glass rounded-3xl p-4 flex items-center gap-3 active:scale-[0.99] transition-transform"
+            >
+              <div className="w-11 h-11 rounded-full bg-grad-coral flex items-center justify-center text-xl">⚡</div>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-ink">Zaznamenat trénink</div>
+                <div className="text-[11px] text-ink-mute">spálené kalorie navýší dnešní cíl</div>
+              </div>
+              <svg className="text-ink-mute" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="m9 18 6-6-6-6"/></svg>
+            </Link>
+          ) : (
+            <div className="space-y-2">
+              {activities.map((a) => {
+                const meta = ACTIVITY_LABEL[a.kind];
+                return (
+                  <div key={a.id} className="relative group glass rounded-2xl p-3 flex items-center gap-3 animate-fade-up">
+                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${meta.tint} flex items-center justify-center text-2xl shrink-0`}>
+                      {meta.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-ink text-sm truncate">{a.name}</div>
+                      <div className="text-[11px] text-ink-mute tabular-nums">{a.minutes} min</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-base font-extrabold tabular-nums text-emerald-300">−{a.kcal}</div>
+                      <div className="text-[10px] text-ink-mute">kcal</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Smazat aktivitu "${a.name}"?`)) deleteActivity(a.id);
+                      }}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-surface-3/80 text-ink-mute hover:text-red-400 active:scale-90 flex items-center justify-center backdrop-blur opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Smazat aktivitu"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 6 6 18M6 6l12 12"/>
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </section>
 
-        <MacroBar protein={protein} carbs={carbs} fat={fat} targets={targets} />
-
-        {/* QUICK LOG — the shortest path to a logged meal */}
-        {isToday && recent.length > 0 && (
-          <section className="reveal" style={{ '--i': 3 } as React.CSSProperties}>
-            <div className="flex items-baseline justify-between px-1 mb-2.5">
-              <h2 className="text-micro font-semibold uppercase tracking-label text-ink-mute">Rychlý zápis</h2>
-              <Link to="/add" className="text-micro text-violet-300 transition-opacity duration-200 active:opacity-60">
-                Všechno jídlo
-              </Link>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5" style={{ scrollbarWidth: 'none' }}>
-              {recent.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => quickAdd(r)}
-                  className="shrink-0 w-[132px] card p-3 text-left transition-transform duration-200 active:scale-[0.97]"
-                >
-                  <FoodThumb src={r.imageUrl} alt={r.name} size="sm" category={r.category ?? categorize(r.name)} />
-                  <div className="mt-2.5 text-sm font-medium text-ink leading-tight line-clamp-2 h-[2.3rem]">
-                    {r.name}
-                  </div>
-                  <div className="mt-1 text-micro text-ink-mute tabular-nums">
-                    {r.defaultGrams} g · {Math.round(r.kcal * (r.defaultGrams / (r.per || 100)))} kcal
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* MEALS */}
-        <section className="reveal" style={{ '--i': 4 } as React.CSSProperties}>
-          <div className="flex items-baseline justify-between px-1 mb-2.5">
-            <h2 className="text-micro font-semibold uppercase tracking-label text-ink-mute">Jídla</h2>
-            <span className="text-micro text-ink-dim tabular-nums">{meals.length}</span>
+        <section className="animate-fade-up">
+          <div className="flex items-baseline justify-between px-1 mb-3">
+            <h2 className="font-bold text-lg text-ink">Jídla</h2>
+            <span className="text-xs text-ink-mute tabular-nums">{meals.length} {meals.length === 1 ? 'položka' : meals.length >= 2 && meals.length <= 4 ? 'položky' : 'položek'}</span>
           </div>
-
           {meals.length === 0 ? (
-            <div className="card p-8 text-center">
-              <p className="text-h3 font-semibold text-ink">Dnes zatím nic</p>
-              <p className="text-sm text-ink-mute mt-1.5 leading-snug">
-                Vyfoť talíř, naskenuj obal nebo najdi jídlo v databázi.
-              </p>
-              <Link to="/add" className="btn btn-primary px-5 py-3 mt-5">
-                <Icon name="plus" size={17} strokeWidth={2} />
-                Přidat jídlo
-              </Link>
+            <div className="glass rounded-3xl p-8 text-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-grad-glow opacity-50 pointer-events-none" />
+              <div className="relative">
+                <div className="text-5xl mb-3 animate-pop">🍽️</div>
+                <p className="text-ink font-semibold text-base">
+                  {data.meals.length === 0 ? 'Začni svůj den s Kaloriak!' : 'Zapiš si první jídlo dne'}
+                </p>
+                <p className="text-ink-soft text-xs mt-1.5">
+                  {data.meals.length === 0
+                    ? 'Vyfoť, naskenuj nebo najdi v databázi.'
+                    : 'Foť, skenuj kód, nebo vyhledej v databázi.'}
+                </p>
+                <Link
+                  to="/add"
+                  className="inline-flex items-center gap-2 mt-5 px-6 py-3 rounded-full bg-grad-coral text-white font-semibold text-sm shadow-coral-glow active:scale-95 transition-transform"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                  Přidat jídlo
+                </Link>
+              </div>
             </div>
           ) : (
             <DndContext
@@ -209,52 +324,45 @@ export default function Today() {
               onDragEnd={handleDragEnd}
               autoScroll={{ threshold: { x: 0, y: 0.18 }, interval: 5 }}
             >
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {MEAL_TYPE_ORDER.map((type) => {
                   const items = meals.filter((m) => resolveMealType(m) === type);
                   if (items.length === 0 && !draggingId) return null;
-                  const meta = MEAL_TYPE_META[type];
                   const sectionKcal = items.reduce((s, m) => s + m.kcal, 0);
+                  const meta = MEAL_TYPE_META[type];
                   return (
                     <DroppableSection key={type} id={type} isDragging={!!draggingId}>
-                      <div className="flex items-baseline gap-2 px-4 pt-3.5 pb-2.5">
-                        <span className="text-h3 font-semibold text-ink">{meta.label}</span>
-                        <span className="text-micro text-ink-dim tabular-nums">{meta.range}</span>
-                        <span className="flex-1" />
-                        <span className="text-sm font-semibold text-ink-soft tabular-nums">
-                          {Math.round(sectionKcal)}
-                          <span className="text-ink-dim font-normal"> kcal</span>
-                        </span>
-                      </div>
+                      <MealSectionHeader kcal={sectionKcal} count={items.length} meta={meta} />
                       {items.map((m) => (
-                        <MealRow
+                        <DraggableMealRow
                           key={m.id}
                           meal={m}
                           onEdit={() => setEditingMeal(m)}
-                          onDelete={() => { if (window.confirm(`Smazat „${m.name}"?`)) deleteMeal(m.id); }}
+                          onDelete={() => { if (window.confirm(`Smazat "${m.name}"?`)) deleteMeal(m.id); }}
                         />
                       ))}
                       {items.length === 0 && draggingId && (
-                        <div className="px-4 pb-5 pt-1 text-center text-micro text-ink-dim">Přetáhni sem</div>
+                        <div className="px-4 py-5 flex items-center justify-center">
+                          <span className="text-[11px] text-ink-mute italic">Přetáhni sem</span>
+                        </div>
                       )}
                     </DroppableSection>
                   );
                 })}
               </div>
-
               <DragOverlay dropAnimation={null} modifiers={[restrictToWindowEdges]}>
                 {draggingId ? (() => {
                   const m = meals.find((meal) => meal.id === draggingId);
                   if (!m) return null;
                   return (
                     <div
-                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-field"
-                      style={{ width: 216, background: '#1a181d', border: '1px solid rgba(143,105,224,0.45)' }}
+                      className="flex items-center gap-2.5 px-3 py-2.5 glass rounded-2xl shadow-2xl ring-1 ring-coral-400/40"
+                      style={{ width: 220, opacity: 0.96 }}
                     >
                       <FoodThumb src={m.imageDataUrl} alt={m.name} size="sm" category={categorize(m.name)} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-ink truncate">{m.name}</div>
-                        <div className="text-micro text-ink-mute tabular-nums">{Math.round(m.kcal)} kcal</div>
+                        <div className="font-semibold text-sm text-ink truncate">{m.name}</div>
+                        <div className="text-[10px] text-ink-mute tabular-nums">{Math.round(m.kcal)} kcal</div>
                       </div>
                     </div>
                   );
@@ -263,73 +371,6 @@ export default function Today() {
             </DndContext>
           )}
         </section>
-
-        <WaterTracker
-          ml={data.water?.[date] ?? 0}
-          goalMl={2000}
-          servingMl={250}
-          onAdd={(d) => setWater(date, (data.water?.[date] ?? 0) + d)}
-          onRemove={(d) => setWater(date, Math.max(0, (data.water?.[date] ?? 0) - d))}
-        />
-
-        {/* ACTIVITIES */}
-        <section className="reveal" style={{ '--i': 5 } as React.CSSProperties}>
-          <div className="flex items-baseline justify-between px-1 mb-2.5">
-            <h2 className="text-micro font-semibold uppercase tracking-label text-ink-mute">Aktivity</h2>
-            <Link to="/activity" className="text-micro text-violet-300 transition-opacity duration-200 active:opacity-60">
-              Přidat
-            </Link>
-          </div>
-
-          {activities.length === 0 ? (
-            <Link to="/activity" className="card p-4 flex items-center gap-3.5 transition-transform duration-200 active:scale-[0.99]">
-              <span className="w-10 h-10 rounded-xl bg-surface-2 flex items-center justify-center text-violet-300 shrink-0"
-                    style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
-                <Icon name="activity" size={18} />
-              </span>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-ink">Zaznamenat trénink</div>
-                <div className="text-micro text-ink-mute">Spálené kalorie navýší dnešní cíl.</div>
-              </div>
-              <Icon name="right" size={16} className="text-ink-dim" />
-            </Link>
-          ) : (
-            <div className="card divide-y divide-white/[0.05]">
-              {activities.map((a) => (
-                <div key={a.id} className="flex items-center gap-3.5 p-4">
-                  <span className="w-10 h-10 rounded-xl bg-surface-2 flex items-center justify-center text-violet-300 shrink-0"
-                        style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
-                    <Icon name="activity" size={18} />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-ink truncate">{a.name}</div>
-                    <div className="text-micro text-ink-mute tabular-nums">
-                      {a.name === ACTIVITY_LABEL[a.kind].label ? '' : `${ACTIVITY_LABEL[a.kind].label} · `}
-                      {a.minutes} min
-                    </div>
-                  </div>
-                  <div className="text-sm font-semibold tabular-nums text-ok shrink-0">−{a.kcal}</div>
-                  <button
-                    onClick={() => { if (window.confirm(`Smazat aktivitu „${a.name}"?`)) deleteActivity(a.id); }}
-                    className="shrink-0 w-8 h-8 rounded-full text-ink-dim hover:text-danger flex items-center justify-center transition-colors"
-                    aria-label="Smazat aktivitu"
-                  >
-                    <Icon name="close" size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <DailyFeedbackCard
-          date={date}
-          kcal={kcal} protein={protein} carbs={carbs} fat={fat}
-          targets={targets}
-          meals={meals}
-          goal={profile?.goal ?? 'maintain'}
-          sex={profile?.sex ?? 'male'}
-        />
       </main>
 
       {editingMeal && (
@@ -343,35 +384,124 @@ export default function Today() {
   );
 }
 
-function IconBtn({ children, onClick, label, disabled }: {
-  children: React.ReactNode; onClick: () => void; label: string; disabled?: boolean;
+function HeroStat({ label, value, unit, accent, divider }: {
+  label: string; value: number; unit: string; accent?: string; divider?: boolean;
 }) {
   return (
-    <button onClick={onClick} disabled={disabled} aria-label={label} className="btn btn-ghost w-10 h-10 rounded-full">
+    <div className={`flex flex-col items-center gap-0.5 ${divider ? 'border-l border-white/[0.07]' : ''}`}>
+      <span className="text-[9px] uppercase tracking-[0.2em] text-ink-mute font-bold">{label}</span>
+      <span className={`text-base font-extrabold tabular-nums leading-none ${accent ?? 'text-ink'}`}>{value}</span>
+      <span className="text-[10px] text-ink-mute">{unit}</span>
+    </div>
+  );
+}
+
+function IconBtn({ children, onClick, ariaLabel, disabled }: { children: React.ReactNode; onClick: () => void; ariaLabel: string; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      className="w-10 h-10 rounded-full glass flex items-center justify-center text-ink-soft active:scale-90 transition-transform disabled:opacity-30"
+    >
       {children}
     </button>
   );
 }
 
+function MacroPill({ label, value, target, gradient }: { label: string; value: number; target: number; gradient: string }) {
+  const pct = target > 0 ? Math.min(100, (value / target) * 100) : 0;
+  const v = Math.round(value);
+  const [hover, setHover] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onTouchStart={() => setHover(true)}
+      onTouchEnd={() => setHover(false)}
+      className="glass rounded-2xl p-3 relative overflow-hidden"
+    >
+      {/* fill glow */}
+      <div
+        className={`absolute inset-x-0 bottom-0 ${gradient} opacity-90`}
+        style={{ height: `${pct * 0.55}%`, transition: 'height 700ms cubic-bezier(.2,.8,.2,1)', filter: 'blur(18px)' }}
+      />
+      {/* soft glow halo on hover */}
+      {hover && (
+        <div
+          className="absolute inset-0 pointer-events-none opacity-0 pill-halo"
+          style={{
+            background: 'radial-gradient(circle at 50% 60%, rgba(255,255,255,0.18), transparent 65%)',
+          }}
+        />
+      )}
+      <div className="relative text-center">
+        <div className="text-[10px] font-extrabold uppercase tracking-wider text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">{label}</div>
+        <div className="flex items-baseline justify-center gap-0.5 mt-1">
+          <span className="text-xl font-extrabold tabular-nums text-ink leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">{v}</span>
+          <span className="text-[10px] font-semibold text-white/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">/{target}g</span>
+        </div>
+        <div className="h-1 rounded-full bg-black/30 mt-2 overflow-hidden ring-1 ring-white/5">
+          <div
+            className={`h-full ${gradient} rounded-full`}
+            style={{ width: `${pct}%`, transition: 'width 700ms cubic-bezier(.2,.8,.2,1)' }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MealSectionHeader({ kcal, count, meta }: {
+  kcal: number;
+  count: number;
+  meta: typeof MEAL_TYPE_META[MealType];
+}) {
+  return (
+    <div className="relative overflow-hidden">
+      <div className={`absolute inset-0 bg-gradient-to-r ${meta.tint}`} />
+      <div className="absolute inset-0 bg-black/10" />
+      <div className="relative flex items-center gap-3 px-4 py-3">
+        <span className="text-xl leading-none">{meta.icon}</span>
+        <span className="flex-1 font-bold text-sm text-white">{meta.label}</span>
+        {count > 0 && (
+          <span className="text-[10px] font-semibold bg-black/25 text-white/70 px-2 py-0.5 rounded-full tabular-nums">
+            {count}×
+          </span>
+        )}
+        <div className="shrink-0 text-right">
+          <span className="font-extrabold text-sm tabular-nums text-white">{Math.round(kcal)}</span>
+          <span className="text-[10px] text-white/60 ml-0.5">kcal</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DroppableSection({ id, children, isDragging }: {
-  id: MealType; children: React.ReactNode; isDragging: boolean;
+  id: MealType;
+  children: React.ReactNode;
+  isDragging: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <div
       ref={setNodeRef}
-      className="card overflow-hidden transition-colors duration-200"
-      style={isOver
-        ? { borderColor: 'rgba(143,105,224,0.55)' }
-        : isDragging ? { borderColor: 'rgba(255,255,255,0.12)' } : undefined}
+      className={[
+        'glass rounded-3xl overflow-hidden transition-all duration-200',
+        isOver ? 'ring-2 ring-coral-400/50' : '',
+        isDragging && !isOver ? 'ring-1 ring-white/[0.08]' : '',
+      ].join(' ')}
     >
       {children}
     </div>
   );
 }
 
-function MealRow({ meal, onEdit, onDelete }: {
-  meal: Meal; onEdit: () => void; onDelete: () => void;
+function DraggableMealRow({ meal, onEdit, onDelete }: {
+  meal: Meal;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: meal.id });
   const wasDragging = useRef(false);
@@ -395,40 +525,52 @@ function MealRow({ meal, onEdit, onDelete }: {
         WebkitUserSelect: 'none',
       } as React.CSSProperties}
       onContextMenu={(e) => e.preventDefault()}
-      className="flex items-center gap-3 px-3 py-2.5 border-t border-white/[0.05]"
+      className="flex items-center gap-2.5 px-3 py-2.5 border-t border-white/[0.05] first:border-t-0"
     >
+      {/* grip */}
       <button
         {...listeners}
         {...attributes}
-        className="shrink-0 text-ink-dim hover:text-ink-mute touch-none transition-colors p-1 -m-1"
+        className="shrink-0 text-ink-mute/60 hover:text-ink-mute active:text-ink-soft touch-none transition-colors p-1 -m-1"
         tabIndex={-1}
         aria-label="Přetáhnout"
       >
-        <Icon name="grip" size={16} strokeWidth={2.5} />
+        <svg width="11" height="15" viewBox="0 0 11 15" fill="currentColor">
+          <circle cx="3.5" cy="1.5" r="1.3"/><circle cx="7.5" cy="1.5" r="1.3"/>
+          <circle cx="3.5" cy="7.5" r="1.3"/><circle cx="7.5" cy="7.5" r="1.3"/>
+          <circle cx="3.5" cy="13.5" r="1.3"/><circle cx="7.5" cy="13.5" r="1.3"/>
+        </svg>
       </button>
 
+      {/* thumbnail */}
       <FoodThumb src={meal.imageDataUrl} alt={meal.name} size="sm" category={categorize(meal.name)} />
 
+      {/* name + macros — tappable for edit */}
       <button onClick={() => { if (!wasDragging.current) onEdit(); }} className="flex-1 min-w-0 text-left">
-        <div className="flex items-baseline gap-2 min-w-0">
-          <span className="text-sm font-medium text-ink truncate">{meal.name}</span>
-          <span className="text-micro text-ink-dim shrink-0 tabular-nums">{meal.grams} g</span>
+        <div className="flex items-baseline gap-1.5 min-w-0">
+          <span className="font-semibold text-sm text-ink truncate leading-snug">{meal.name}</span>
+          <span className="text-[11px] text-ink-mute shrink-0">{meal.grams}g</span>
         </div>
-        <div className="flex items-center gap-2.5 mt-1 text-micro tabular-nums text-ink-mute">
-          <span><i className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-[1px]" style={{ background: '#f47da6' }} />{meal.protein_g.toFixed(0)}</span>
-          <span><i className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-[1px]" style={{ background: '#e8b45f' }} />{meal.carbs_g.toFixed(0)}</span>
-          <span><i className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-[1px]" style={{ background: '#6ec2f0' }} />{meal.fat_g.toFixed(0)}</span>
+        <div className="flex items-center gap-1 mt-1">
+          <span className="text-[10px] px-1.5 py-[2px] rounded-md bg-macro-protein/15 text-macro-protein font-semibold">B {meal.protein_g.toFixed(0)}</span>
+          <span className="text-[10px] px-1.5 py-[2px] rounded-md bg-macro-carbs/15 text-macro-carbs font-semibold">S {meal.carbs_g.toFixed(0)}</span>
+          <span className="text-[10px] px-1.5 py-[2px] rounded-md bg-macro-fat/15 text-macro-fat font-semibold">T {meal.fat_g.toFixed(0)}</span>
         </div>
       </button>
 
-      <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">{Math.round(meal.kcal)}</span>
+      {/* kcal */}
+      <div className="shrink-0 text-right">
+        <span className="font-extrabold text-sm tabular-nums text-ink">{Math.round(meal.kcal)}</span>
+        <div className="text-[10px] text-ink-mute">kcal</div>
+      </div>
 
+      {/* delete */}
       <button
         onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        className="shrink-0 w-8 h-8 rounded-full text-ink-dim hover:text-danger flex items-center justify-center transition-colors"
+        className="shrink-0 w-7 h-7 rounded-full bg-white/[0.04] text-ink-mute/60 hover:text-red-400 active:scale-90 flex items-center justify-center transition-colors"
         aria-label="Smazat"
       >
-        <Icon name="close" size={13} />
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
     </div>
   );
@@ -445,13 +587,14 @@ function DailyFeedbackCard({ date, kcal, protein, carbs, fat, targets, meals, go
   const cacheKey = `feedback:${date}:${meals.length}`;
   const [text, setText] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  // load() closes over the current props, so the context is built at call time.
-  function buildContext(): FeedbackContext {
+  function buildCtx(): FeedbackContext {
     return {
       hour: new Date().getHours(),
-      goal, sex,
+      goal,
+      sex,
       kcal: { eaten: Math.round(kcal), target: targets.kcal },
       protein: { eaten: Math.round(protein), target: targets.protein_g },
       carbs: { eaten: Math.round(carbs), target: targets.carbs_g },
@@ -465,14 +608,16 @@ function DailyFeedbackCard({ date, kcal, protein, carbs, fat, targets, meals, go
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) { setText(cached); return; }
     }
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
     setLoading(true);
-    setError(false);
+    setError(null);
     try {
-      const msg = await getDailyFeedback(buildContext());
+      const msg = await getDailyFeedback(buildCtx());
       setText(msg);
       sessionStorage.setItem(cacheKey, msg);
     } catch {
-      setError(true);
+      setError('Feedback momentálně nedostupný.');
     } finally {
       setLoading(false);
     }
@@ -480,42 +625,51 @@ function DailyFeedbackCard({ date, kcal, protein, carbs, fat, targets, meals, go
 
   useEffect(() => {
     if (meals.length > 0) load();
+    return () => { abortRef.current?.abort(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheKey]);
 
   if (meals.length === 0) return null;
 
   return (
-    <section className="card p-4 reveal" style={{ '--i': 6 } as React.CSSProperties}>
-      <div className="flex gap-3.5">
-        <span className="shrink-0 w-9 h-9 rounded-xl bg-surface-2 flex items-center justify-center text-violet-300"
-              style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
-          <Icon name="spark" size={17} />
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-micro font-semibold uppercase tracking-label text-ink-mute">Shrnutí dne</span>
-            <button
-              onClick={() => load(true)}
-              disabled={loading}
-              className="text-ink-dim hover:text-ink-soft transition-colors disabled:opacity-40"
-              aria-label="Načíst znovu"
-            >
-              <Icon name="refresh" size={14} className={loading ? 'animate-spin-slow' : ''} />
-            </button>
+    <section className="animate-fade-up">
+      <div className="glass rounded-3xl p-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-coral-500/5 pointer-events-none" />
+        <div className="relative flex gap-3">
+          <div className="shrink-0 w-9 h-9 rounded-2xl bg-gradient-to-br from-violet-500/25 to-coral-500/25 ring-1 ring-white/10 flex items-center justify-center text-base">
+            ✨
           </div>
-          {loading && !text ? (
-            <div className="space-y-2 py-1">
-              <div className="h-2.5 rounded-full bg-surface-2 w-full" />
-              <div className="h-2.5 rounded-full bg-surface-2 w-3/5" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-ink-mute">AI kouč</span>
+              <button
+                onClick={() => load(true)}
+                disabled={loading}
+                className="text-[11px] text-ink-mute hover:text-ink-soft active:scale-90 transition-all disabled:opacity-40 flex items-center gap-1"
+              >
+                {loading
+                  ? <span className="inline-block w-3 h-3 border-2 border-white/20 border-t-coral-400 rounded-full animate-spin" />
+                  : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                }
+                Obnovit
+              </button>
             </div>
-          ) : error ? (
-            <p className="text-sm text-ink-mute">Shrnutí se nepovedlo načíst.</p>
-          ) : text ? (
-            <p className="text-sm text-ink-soft leading-relaxed">{text}</p>
-          ) : null}
+            {loading && !text ? (
+              <div className="space-y-1.5 py-0.5">
+                <div className="h-3 rounded-full bg-white/8 w-full animate-pulse" />
+                <div className="h-3 rounded-full bg-white/8 w-3/4 animate-pulse" />
+              </div>
+            ) : error ? (
+              <p className="text-xs text-ink-mute italic">{error}</p>
+            ) : text ? (
+              <p className="text-sm text-ink leading-relaxed">{text}</p>
+            ) : null}
+          </div>
         </div>
       </div>
     </section>
   );
 }
+
+// Suppress unused-import warning for MealType when no other usage exists.
+export type { MealType };

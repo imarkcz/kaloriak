@@ -371,7 +371,7 @@ export const FOODS_DB: FoodItem[] = [
   { id: 'late', name: 'Latte (mléko 1,5%)', per: 100, defaultGrams: 300, kcal: 50, protein_g: 3, carbs_g: 4.5, fat_g: 2, category: 'napoj', tags: ['late', 'kava'] },
   { id: 'capuc', name: 'Cappuccino', per: 100, defaultGrams: 200, kcal: 50, protein_g: 3, carbs_g: 4, fat_g: 2.5, category: 'napoj', tags: ['cappuccino', 'kava'] },
   { id: 'kava-mleko', name: 'Káva s mlékem', per: 100, defaultGrams: 200, kcal: 30, protein_g: 1.5, carbs_g: 2.5, fat_g: 1.5, category: 'napoj', tags: ['kava'] },
-  { id: 'kava-cerna', name: 'Káva černá', per: 100, defaultGrams: 200, kcal: 2, protein_g: 0.1, carbs_g: 0, fat_g: 0, category: 'napoj', tags: ['kava'] },
+  { id: 'kava-cerna-hrnek', name: 'Káva černá', per: 100, defaultGrams: 200, kcal: 2, protein_g: 0.1, carbs_g: 0, fat_g: 0, category: 'napoj', tags: ['kava'] },
   { id: 'kola', name: 'Coca-Cola', per: 100, defaultGrams: 330, kcal: 42, protein_g: 0, carbs_g: 10.6, fat_g: 0, category: 'napoj', tags: ['coca cola', 'kola'] },
   { id: 'kola-zero', name: 'Coca-Cola Zero', per: 100, defaultGrams: 330, kcal: 0.3, protein_g: 0, carbs_g: 0, fat_g: 0, category: 'napoj', tags: ['coca cola', 'zero'] },
   { id: 'sprite', name: 'Sprite', per: 100, defaultGrams: 330, kcal: 39, protein_g: 0, carbs_g: 9.7, fat_g: 0, category: 'napoj', tags: ['sprite'] },

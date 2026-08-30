@@ -1,0 +1,27 @@
+rules_version = '2';
+
+// Kaloriak: každý přihlášený uživatel čte a zapisuje výhradně svůj vlastní
+// dokument. Nic víc aplikace nepotřebuje.
+//
+// Nasazení: Firebase konzole -> Firestore Database -> záložka Rules ->
+// vlož tenhle obsah -> Publish. Trvá to půl minuty a projeví se okamžitě.
+//
+// Pozor na testovací režim: Firebase při zakládání nabízí pravidla ve tvaru
+//   allow read, write: if request.time < timestamp.date(2026, 6, 5);
+// Ta po uvedeném datu začnou odmítat úplně všechno, což se v aplikaci projeví
+// jako "Cloud odmítá zápis" s kódem permission-denied. Pokud to tam máš,
+// tohle je oprava.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Nic jiného není přístupné.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

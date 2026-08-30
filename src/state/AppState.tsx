@@ -135,6 +135,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // listener from re-applying our own echo and starting a write loop.
   const lastSeen = useRef<string>('');
   const ready = useRef(false);
+  // Listener resubscribe backoff. The count lives in a ref so a success does
+  // not re-run the effect and tear the listener down again.
+  const retries = useRef(0);
+  const [retryTick, setRetryTick] = useState(0);
 
   // Kept in sync after commit rather than during render: everything that reads
   // these refs (the debounced write, the hide flush, the manual sync buttons)
@@ -231,12 +235,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Realtime listener: drives sync status from Firestore's own metadata and
   // brings in changes made on another device.
+  //
+  // Firestore tears the listener down permanently on error, so without the
+  // backoff resubscribe below a single hiccup would leave sync dead until the
+  // app is reloaded — which is exactly how a transient failure turned into a
+  // banner that never went away.
   useEffect(() => {
     if (!user) return;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
     const unsub = onSnapshot(
       doc(db, 'users', user.uid),
       { includeMetadataChanges: true },
       (snap) => {
+        retries.current = 0;
         setSyncStatus(snap.metadata.hasPendingWrites ? 'pending' : 'synced');
         setSyncError(null);
         if (!ready.current || snap.metadata.hasPendingWrites || !snap.exists()) return;
@@ -257,10 +269,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setSyncStatus('error');
           setSyncError(err.code);
         }
+        const delay = Math.min(30_000, 2_000 * 2 ** Math.min(retries.current, 4));
+        retries.current += 1;
+        retryTimer = setTimeout(() => setRetryTick((n) => n + 1), delay);
       },
     );
-    return unsub;
-  }, [user]);
+
+    return () => {
+      unsub();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [user, retryTick]);
 
   // localStorage every change (synchronous, instant first paint next launch),
   // Firestore debounced. Firestore's own queue handles delivery from there.

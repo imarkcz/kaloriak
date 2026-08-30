@@ -2,36 +2,28 @@ import { Suspense, lazy } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './state/AppState';
 import Today from './pages/Today';
-import BottomNav from './components/BottomNav';
-import LoginScreen from './components/LoginScreen';
-import UpdateBanner from './components/UpdateBanner';
-import SyncBanner from './components/SyncBanner';
-import AmbientGlow from './components/AmbientGlow';
 
 // Today is the landing route and stays in the main chunk. The rest split out —
-// AddMeal alone drags in the barcode scanner, which most sessions never open.
+// AddMeal alone pulls in the barcode scanner, which most sessions never open.
 const AddMeal = lazy(() => import('./pages/AddMeal'));
 const AddActivity = lazy(() => import('./pages/AddActivity'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
-
-function Spinner() {
-  return (
-    <div className="min-h-dvh flex items-center justify-center">
-      <svg className="animate-spin-slow w-7 h-7 text-violet-400" viewBox="0 0 24 24" fill="none" aria-label="Načítám">
-        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeDasharray="31.4" strokeDashoffset="10" strokeLinecap="round" />
-      </svg>
-    </div>
-  );
-}
+import BottomNav from './components/BottomNav';
+import LoginScreen from './components/LoginScreen';
+import UpdateBanner from './components/UpdateBanner';
+import SyncBanner from './components/SyncBanner';
+import SparklesCanvas from './components/SparklesCanvas';
 
 function Shell() {
   const { data, user, authLoading, dataLoading } = useApp();
   const location = useLocation();
 
-  // Wait for Firebase auth AND the initial load, so a logged-in user never
-  // flashes onboarding before their cloud data lands.
+  // Wait for Firebase auth AND initial data load — prevents redirect to
+  // Onboarding before cloud data arrives
   if (authLoading || dataLoading) return <Spinner />;
+
+  // Not logged in — show login screen
   if (!user) return <LoginScreen />;
 
   if (!data.onboarded && location.pathname !== '/onboarding') {
@@ -41,7 +33,10 @@ function Shell() {
     return <Navigate to="/" replace />;
   }
 
-  const hideNav = ['/onboarding', '/add', '/activity'].includes(location.pathname);
+  const hideNav =
+    location.pathname === '/onboarding' ||
+    location.pathname === '/add' ||
+    location.pathname === '/activity';
 
   return (
     <>
@@ -60,11 +55,21 @@ function Shell() {
   );
 }
 
+function Spinner() {
+  return (
+    <div className="min-h-dvh flex items-center justify-center">
+      <svg className="animate-spin w-8 h-8 text-coral-400" viewBox="0 0 24 24" fill="none" aria-label="Načítám">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4" strokeDashoffset="10" strokeLinecap="round"/>
+      </svg>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <AppProvider>
       <BrowserRouter>
-        <AmbientGlow />
+        <SparklesCanvas />
         <div className="relative" style={{ zIndex: 1 }}>
           <UpdateBanner />
           <SyncBanner />
