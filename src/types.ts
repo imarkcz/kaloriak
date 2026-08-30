@@ -84,3 +84,14 @@ export interface AppData {
   geminiApiKey: string;
   onboarded: boolean;
 }
+
+/** One component of a plate — meat, side, salad — so the user can untick what
+ *  they did not actually eat instead of editing one merged number. */
+export interface FoodItem {
+  name: string;
+  grams: number;
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}

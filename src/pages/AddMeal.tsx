@@ -8,7 +8,7 @@ import { todayISO } from '../lib/date';
 import { searchLocal, FOODS_DB } from '../lib/foodDb';
 import { searchOFF, lookupBarcode, looksForeign, type FoodSearchResult } from '../lib/foodSearch';
 import { categorize } from '../lib/foodCategory';
-import { portionRule, portionLabel } from '../lib/portion';
+import { portionRule, portionLabel, sumItems, usableItems, type PortionBase } from '../lib/portion';
 import { recentFoodsFromMeals, searchRecent } from '../lib/recentFoods';
 // zxing is ~440 kB and only needed once someone taps the scan button.
 const BarcodeScanner = lazy(() => import('../components/BarcodeScanner'));
@@ -34,34 +34,6 @@ const FAT_MULT: Record<PrepMethod, number> = {
   oven: 0.75,
   boiled: 0.4,
 };
-/** Macro totals the editable photo fields currently describe. Normally the AI's
- *  whole-portion estimate; unticking a component of the plate shrinks it. */
-interface Base { grams: number; kcal: number; protein_g: number; carbs_g: number; fat_g: number }
-
-function sumItems(items: FoodItem[]): Base {
-  return items.reduce<Base>(
-    (a, it) => ({
-      grams: a.grams + it.grams,
-      kcal: a.kcal + it.kcal,
-      protein_g: +(a.protein_g + it.protein_g).toFixed(1),
-      carbs_g: +(a.carbs_g + it.carbs_g).toFixed(1),
-      fat_g: +(a.fat_g + it.fat_g).toFixed(1),
-    }),
-    { grams: 0, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-  );
-}
-
-// A breakdown is only worth showing when there is something to untick and the
-// parts actually add up to the whole — a model that returns three components
-// summing to half the portion would silently halve the entry.
-function usableItems(a: FoodAnalysis): FoodItem[] | null {
-  const items = a.items?.filter((it) => it && it.grams > 0);
-  if (!items || items.length < 2) return null;
-  const total = sumItems(items).grams;
-  if (a.grams > 0 && Math.abs(total - a.grams) / a.grams > 0.4) return null;
-  return items;
-}
-
 const PREP_LABEL: Record<PrepMethod, string> = {
   asis: 'Jak je',
   airfryer: 'Airfryer',
@@ -91,7 +63,7 @@ export default function AddMeal() {
   const [photoProt, setPhotoProt] = useState(0);
   const [photoCarbs, setPhotoCarbs] = useState(0);
   const [photoFat, setPhotoFat] = useState(0);
-  const [base, setBase] = useState<Base>({ grams: 0, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
+  const [base, setBase] = useState<PortionBase>({ grams: 0, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
   const [photoItems, setPhotoItems] = useState<FoodItem[] | null>(null);
   const [dropped, setDropped] = useState<number[]>([]);
 
@@ -223,7 +195,7 @@ export default function AddMeal() {
     }
   }
 
-  function applyBase(b: Base) {
+  function applyBase(b: PortionBase) {
     setBase(b);
     setPhotoGrams(Math.round(b.grams));
     setPhotoKcal(b.kcal);

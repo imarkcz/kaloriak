@@ -34,3 +34,29 @@ assert.strictEqual(differsEnough(750, 400), true);
 assert.strictEqual(differsEnough(0, 300), true);
 
 console.log('portionMemory ok');
+
+// --- plate breakdown ---------------------------------------------------
+import { sumItems, usableItems } from '../src/lib/portion.ts';
+import type { FoodItem } from '../src/types.ts';
+
+const it = (name: string, g: number, kcal: number): FoodItem =>
+  ({ name, grams: g, kcal, protein_g: 1, carbs_g: 2, fat_g: 0.5 });
+
+const plate = [it('Řízek', 300, 750), it('Salát', 80, 100)];
+assert.deepStrictEqual(sumItems(plate), { grams: 380, kcal: 850, protein_g: 2, carbs_g: 4, fat_g: 1 });
+
+// The whole point: unticking a component shrinks the base.
+assert.strictEqual(sumItems(plate.filter((_, i) => i !== 1)).kcal, 750);
+
+assert.deepStrictEqual(usableItems({ grams: 380, items: plate }), plate);
+// One item is nothing to untick.
+assert.strictEqual(usableItems({ grams: 300, items: [it('Polévka', 300, 120)] }), null);
+assert.strictEqual(usableItems({ grams: 380 }), null);
+// Parts that do not add up to the whole would silently rewrite the total.
+assert.strictEqual(usableItems({ grams: 900, items: plate }), null);
+// 40 % is the tolerance, so a 15 % mismatch still passes.
+assert.deepStrictEqual(usableItems({ grams: 440, items: plate }), plate);
+// Zero-gram garnish rows drop out before counting.
+assert.strictEqual(usableItems({ grams: 380, items: [...plate, it('Petržel', 0, 0)] })?.length, 2);
+
+console.log('plate items ok');
