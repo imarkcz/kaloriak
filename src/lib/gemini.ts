@@ -1,3 +1,14 @@
+/** One component of a plate — meat, side, salad — so the user can untick what
+ *  they did not actually eat instead of editing one merged number. */
+export interface FoodItem {
+  name: string;
+  grams: number;
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}
+
 export interface FoodAnalysis {
   name: string;
   grams: number;
@@ -5,6 +16,7 @@ export interface FoodAnalysis {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  items?: FoodItem[];
   /** Portion in a household unit, e.g. "1 hluboká miska". */
   portionDesc?: string;
   /** How many servings the model can see on the photo. A shared restaurant
@@ -158,7 +170,9 @@ export function fileToBase64(file: File): Promise<{ base64: string; mimeType: st
   });
 }
 
-export async function compressImage(file: File, maxSize = 1024, quality = 0.82): Promise<File> {
+// 768 px is what both Gemini and gpt-4o-mini downscale a photo to internally,
+// so anything larger only pays for itself in mobile upload time.
+export async function compressImage(file: File, maxSize = 768, quality = 0.82): Promise<File> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
   const w = Math.round(bitmap.width * scale);

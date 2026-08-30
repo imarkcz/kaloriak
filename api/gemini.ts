@@ -13,6 +13,21 @@ const SCHEMA = {
     fat_g: { type: Type.NUMBER },
     portionDesc: { type: Type.STRING },
     servingsVisible: { type: Type.NUMBER },
+    items: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          grams: { type: Type.NUMBER },
+          kcal: { type: Type.NUMBER },
+          protein_g: { type: Type.NUMBER },
+          carbs_g: { type: Type.NUMBER },
+          fat_g: { type: Type.NUMBER },
+        },
+        required: ['name', 'grams', 'kcal', 'protein_g', 'carbs_g', 'fat_g'],
+      },
+    },
     confidence: { type: Type.STRING, enum: ['low', 'medium', 'high'] },
     note: { type: Type.STRING },
   },
@@ -54,10 +69,16 @@ Odhad velikosti podle nádobí (použij jako kalibraci):
 Kalorie u tekutin:
 - Vývar má jen 5–15 kcal na 100 g. U polévek proto vyjde velká hmotnost, ale málo kalorií. Nepřepočítávej kalorie podle celkové hmotnosti.
 
+Rozpad porce na položky (pole items):
+- items = jednotlivé složky té jedné porce tak, jak je člověk vidí na talíři: maso, příloha, zelenina, omáčka, pečivo. Uživatel si pak může odškrtnout, co nesnědl.
+- Součet gramů i kalorií všech položek se MUSÍ rovnat celkové porci (grams, kcal, makra).
+- Jednolité jídlo (polévka, smoothie, kus masa bez přílohy) = jedna položka.
+- Maximálně 6 položek. Koření, kapku oleje ani ozdobu nevypisuj zvlášť — přičti je k položce, ke které patří.
+
 Formát odpovědi:
 - Odpovídej vždy česky, i u cizích jídel. Zavedený původní název dej do závorky, např. "Grilované vepřové s nudlemi (bún chả)".
 - portionDesc = porce lidskou mírou, např. "1 hluboká miska", "1 talíř", "1 řízek s bramborem".
-- Když je jídel na talíři víc, spoj je do jednoho záznamu, např. "Kuřecí s rýží a salátem".
+- name = celé jídlo jedním názvem, např. "Kuřecí s rýží a salátem". Rozpad patří do items, ne do názvu.
 - Hodnoty zaokrouhli: kcal a gramy na celé číslo, makra na 1 desetinné místo.
 - confidence: high = jasně viditelná porce známého jídla, medium = běžný odhad, low = špatně viditelné nebo neznámé jídlo.`;
 
@@ -72,7 +93,7 @@ Pravidla:
 
 // JSON schemas in plain text for OpenAI/Anthropic (they don't take Type enums)
 const NAME_JSON_SHAPE = `{"name":string,"defaultGrams":number,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number,"confidence":"low"|"medium"|"high","note"?:string}`;
-const IMAGE_JSON_SHAPE = `{"name":string,"grams":number,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number,"portionDesc":string,"servingsVisible":number,"confidence":"low"|"medium"|"high","note"?:string}`;
+const IMAGE_JSON_SHAPE = `{"name":string,"grams":number,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number,"portionDesc":string,"servingsVisible":number,"items":[{"name":string,"grams":number,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number}],"confidence":"low"|"medium"|"high","note"?:string}`;
 
 type ProviderResult = unknown;
 
@@ -204,11 +225,17 @@ async function geminiCall(type: 'name' | 'image', input: { name?: string; imageB
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
   const ai = new GoogleGenAI({ apiKey });
 
+  // temperature 0: the same photo should not produce 750 g one time and 820 g
+  // the next. thinkingBudget 0: 2.5 Flash otherwise spends most of the 8-15 s
+  // wait on a reasoning pass that a schema-constrained portion estimate does
+  // not need.
+  const config = { temperature: 0, thinkingConfig: { thinkingBudget: 0 } };
+
   if (type === 'name') {
     const res = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: `${NAME_PROMPT}\n\nNázev jídla: "${input.name}"` }] }],
-      config: { responseMimeType: 'application/json', responseSchema: ESTIMATE_SCHEMA },
+      config: { ...config, responseMimeType: 'application/json', responseSchema: ESTIMATE_SCHEMA },
     });
     return JSON.parse(res.text ?? '{}');
   }
@@ -219,7 +246,7 @@ async function geminiCall(type: 'name' | 'image', input: { name?: string; imageB
       role: 'user',
       parts: [{ text: IMAGE_PROMPT }, { inlineData: { mimeType: input.mimeType!, data: input.imageBase64! } }],
     }],
-    config: { responseMimeType: 'application/json', responseSchema: SCHEMA },
+    config: { ...config, responseMimeType: 'application/json', responseSchema: SCHEMA },
   });
   return JSON.parse(res.text ?? '{}');
 }
@@ -233,6 +260,7 @@ async function openaiCall(type: 'name' | 'image', input: { name?: string; imageB
   if (type === 'name') {
     const res = await client.chat.completions.create({
       model: 'gpt-4o-mini',
+      temperature: 0,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: `${NAME_PROMPT}\nVrať JSON podle tvaru: ${NAME_JSON_SHAPE}` },
@@ -244,6 +272,7 @@ async function openaiCall(type: 'name' | 'image', input: { name?: string; imageB
 
   const res = await client.chat.completions.create({
     model: 'gpt-4o-mini',
+    temperature: 0,
     response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: `${IMAGE_PROMPT}\nVrať JSON podle tvaru: ${IMAGE_JSON_SHAPE}` },
@@ -269,6 +298,7 @@ async function claudeCall(type: 'name' | 'image', input: { name?: string; imageB
     const res = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 600,
+      temperature: 0,
       system: `${NAME_PROMPT}\nVrať POUZE valid JSON podle tvaru: ${NAME_JSON_SHAPE}. Žádný markdown, žádný komentář.`,
       messages: [{ role: 'user', content: `Název jídla: "${input.name}"` }],
     });
@@ -278,7 +308,9 @@ async function claudeCall(type: 'name' | 'image', input: { name?: string; imageB
 
   const res = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 600,
+    // items[] made the response longer — 600 tokens truncated the JSON.
+    max_tokens: 1200,
+    temperature: 0,
     system: `${IMAGE_PROMPT}\nVrať POUZE valid JSON podle tvaru: ${IMAGE_JSON_SHAPE}. Žádný markdown, žádný komentář.`,
     messages: [{
       role: 'user',

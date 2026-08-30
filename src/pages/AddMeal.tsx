@@ -2,7 +2,8 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../state/AppState';
 import { analyzeFoodImage, compressImage, estimateFoodFromName, fileToBase64, humanizeGeminiError, translateToCzech } from '../lib/gemini';
-import type { FoodAnalysis } from '../lib/gemini';
+import type { FoodAnalysis, FoodItem } from '../lib/gemini';
+import { usualPortion, differsEnough, type UsualPortion } from '../lib/portionMemory';
 import { todayISO } from '../lib/date';
 import { searchLocal, FOODS_DB } from '../lib/foodDb';
 import { searchOFF, lookupBarcode, looksForeign, type FoodSearchResult } from '../lib/foodSearch';
@@ -33,6 +34,34 @@ const FAT_MULT: Record<PrepMethod, number> = {
   oven: 0.75,
   boiled: 0.4,
 };
+/** Macro totals the editable photo fields currently describe. Normally the AI's
+ *  whole-portion estimate; unticking a component of the plate shrinks it. */
+interface Base { grams: number; kcal: number; protein_g: number; carbs_g: number; fat_g: number }
+
+function sumItems(items: FoodItem[]): Base {
+  return items.reduce<Base>(
+    (a, it) => ({
+      grams: a.grams + it.grams,
+      kcal: a.kcal + it.kcal,
+      protein_g: +(a.protein_g + it.protein_g).toFixed(1),
+      carbs_g: +(a.carbs_g + it.carbs_g).toFixed(1),
+      fat_g: +(a.fat_g + it.fat_g).toFixed(1),
+    }),
+    { grams: 0, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+  );
+}
+
+// A breakdown is only worth showing when there is something to untick and the
+// parts actually add up to the whole — a model that returns three components
+// summing to half the portion would silently halve the entry.
+function usableItems(a: FoodAnalysis): FoodItem[] | null {
+  const items = a.items?.filter((it) => it && it.grams > 0);
+  if (!items || items.length < 2) return null;
+  const total = sumItems(items).grams;
+  if (a.grams > 0 && Math.abs(total - a.grams) / a.grams > 0.4) return null;
+  return items;
+}
+
 const PREP_LABEL: Record<PrepMethod, string> = {
   asis: 'Jak je',
   airfryer: 'Airfryer',
@@ -62,6 +91,9 @@ export default function AddMeal() {
   const [photoProt, setPhotoProt] = useState(0);
   const [photoCarbs, setPhotoCarbs] = useState(0);
   const [photoFat, setPhotoFat] = useState(0);
+  const [base, setBase] = useState<Base>({ grams: 0, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
+  const [photoItems, setPhotoItems] = useState<FoodItem[] | null>(null);
+  const [dropped, setDropped] = useState<number[]>([]);
 
   // After save: show one-shot insight popup, then navigate home on dismiss.
   const [insight, setInsight] = useState<MealInsight | null>(null);
@@ -99,6 +131,14 @@ export default function AddMeal() {
     () => portionRule(categorize(photoName || analysis?.name || '')),
     [photoName, analysis],
   );
+
+  // Every past entry already records the grams the user settled on, so the app
+  // can offer their habit instead of arguing with the AI's guess again.
+  const photoUsual = useMemo<UsualPortion | null>(() => {
+    const u = usualPortion(data.meals, photoName || analysis?.name || '');
+    if (!u || !differsEnough(base.grams, u.grams) || Math.round(photoGrams) === u.grams) return null;
+    return u;
+  }, [data.meals, photoName, analysis, base.grams, photoGrams]);
 
   // OFF search debounced
   useEffect(() => {
@@ -166,19 +206,39 @@ export default function AddMeal() {
       setImageDataUrl(dataUrl);
       const result = await analyzeFoodImage(data.geminiApiKey, base64, mimeType);
       setAnalysis(result);
-      setPhotoGrams(Math.round(result.grams));
       setPrep('asis');
-      // Seed editable fields from AI's per-portion estimate
+      // When the plate breaks down into components, they — not the reported
+      // total — become the baseline, so unticking one stays consistent.
+      const items = usableItems(result);
+      setPhotoItems(items);
+      setDropped([]);
+      applyBase(items
+        ? sumItems(items)
+        : { grams: result.grams, kcal: result.kcal, protein_g: result.protein_g, carbs_g: result.carbs_g, fat_g: result.fat_g });
       setPhotoName(result.name);
-      setPhotoKcal(result.kcal);
-      setPhotoProt(result.protein_g);
-      setPhotoCarbs(result.carbs_g);
-      setPhotoFat(result.fat_g);
       setPhotoStage('confirm');
     } catch (e) {
       setPhotoError(humanizeGeminiError(e));
       setPhotoStage('error');
     }
+  }
+
+  function applyBase(b: Base) {
+    setBase(b);
+    setPhotoGrams(Math.round(b.grams));
+    setPhotoKcal(b.kcal);
+    setPhotoProt(b.protein_g);
+    setPhotoCarbs(b.carbs_g);
+    setPhotoFat(b.fat_g);
+  }
+
+  function toggleItem(i: number) {
+    if (!photoItems) return;
+    const next = dropped.includes(i) ? dropped.filter((x) => x !== i) : [...dropped, i];
+    if (next.length >= photoItems.length) return; // never untick the last one
+    setDropped(next);
+    setPrep('asis');
+    applyBase(sumItems(photoItems.filter((_, idx) => !next.includes(idx))));
   }
 
   function showInsightThenNav(meal: { name: string; grams: number; kcal: number; protein_g: number; carbs_g: number; fat_g: number }) {
@@ -188,7 +248,7 @@ export default function AddMeal() {
 
   function handleSavePhoto() {
     if (!analysis) return;
-    const ratio = analysis.grams > 0 ? photoGrams / analysis.grams : 1;
+    const ratio = base.grams > 0 ? photoGrams / base.grams : 1;
     const m = {
       name: photoName.trim() || analysis.name,
       grams: photoGrams,
@@ -227,7 +287,8 @@ export default function AddMeal() {
 
   function handlePickFood(f: FoodSearchResult) {
     setPicked(f);
-    setPickedGrams(f.defaultGrams);
+    // The user's own history beats a generic default portion.
+    setPickedGrams(usualPortion(data.meals, f.name)?.grams ?? f.defaultGrams);
     setPickedPrep('asis');
   }
 
@@ -357,6 +418,7 @@ export default function AddMeal() {
               onGramsChange={setPickedGrams}
               prep={pickedPrep}
               onPrepChange={setPickedPrep}
+              usual={usualPortion(data.meals, picked.name)}
             />
             <div className="mt-3">
               <MealTypePicker value={mealType} onChange={setMealType} />
@@ -585,9 +647,9 @@ export default function AddMeal() {
                     <button
                       key={n}
                       type="button"
-                      onClick={() => { haptic('tap'); setPhotoGrams(Math.round(analysis.grams * n)); }}
+                      onClick={() => { haptic('tap'); setPhotoGrams(Math.round(base.grams * n)); }}
                       className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${
-                        Math.round(photoGrams) === Math.round(analysis.grams * n)
+                        Math.round(photoGrams) === Math.round(base.grams * n)
                           ? 'bg-grad-coral text-white'
                           : 'bg-white/[0.06] text-ink-soft border border-white/10'
                       }`}
@@ -602,6 +664,51 @@ export default function AddMeal() {
             <p className="text-[11px] text-ink-mute mt-1.5">
               {analysis.note ? `${analysis.note} · ` : ''}Klepni na název nebo hodnoty pro úpravu.
             </p>
+
+            {photoItems && (
+              <div className="mt-3 glass rounded-3xl p-5">
+                <div className="flex items-baseline justify-between mb-3">
+                  <span className="text-sm font-medium text-ink">Co je na talíři</span>
+                  <span className="text-[10px] text-ink-mute uppercase tracking-wider">odškrtni, co jsi nesnědl</span>
+                </div>
+                <div className="space-y-1">
+                  {photoItems.map((it, i) => {
+                    const on = !dropped.includes(i);
+                    const locked = on && photoItems.length - dropped.length === 1;
+                    return (
+                      <button
+                        key={`${it.name}-${i}`}
+                        type="button"
+                        disabled={locked}
+                        onClick={() => { haptic('tap'); toggleItem(i); }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-all ${
+                          on ? 'bg-white/[0.05]' : 'opacity-40'
+                        } ${locked ? '' : 'active:scale-[0.98]'}`}
+                      >
+                        <span
+                          className={`w-5 h-5 rounded-md shrink-0 flex items-center justify-center ${
+                            on ? 'bg-grad-coral' : 'border border-white/20'
+                          }`}
+                        >
+                          {on && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M20 6 9 17l-5-5" />
+                            </svg>
+                          )}
+                        </span>
+                        <span className={`flex-1 text-sm truncate ${on ? 'text-ink' : 'text-ink-mute line-through'}`}>
+                          {it.name}
+                        </span>
+                        <span className="text-[11px] text-ink-mute tabular-nums shrink-0">
+                          {Math.round(it.grams)} g · {Math.round(it.kcal)} kcal
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <MealTypePicker value={mealType} onChange={setMealType} />
 
             <div className="mt-3 glass rounded-3xl p-5">
@@ -616,6 +723,9 @@ export default function AddMeal() {
                 unit={photoRule.unit}
                 presets={photoRule.presets}
               />
+              {photoUsual && (
+                <UsualChip usual={photoUsual} unit={photoRule.unit} onApply={() => setPhotoGrams(photoUsual.grams)} />
+              )}
             </div>
 
             <div className={`mt-3 glass rounded-3xl p-5 ${photoRule.allowsPrep ? '' : 'hidden'}`}>
@@ -633,8 +743,8 @@ export default function AddMeal() {
                       setPrep(p);
                       // Recompute fat/kcal from AI baseline whenever prep is tapped.
                       // User's manual macro edits (protein/carbs) are preserved.
-                      const fatNew = +(analysis.fat_g * FAT_MULT[p]).toFixed(1);
-                      const kcalNew = Math.round(analysis.kcal - (analysis.fat_g - fatNew) * 9);
+                      const fatNew = +(base.fat_g * FAT_MULT[p]).toFixed(1);
+                      const kcalNew = Math.round(base.kcal - (base.fat_g - fatNew) * 9);
                       setPhotoFat(Math.max(0, fatNew));
                       setPhotoKcal(Math.max(0, kcalNew));
                     }}
@@ -660,11 +770,11 @@ export default function AddMeal() {
               <NumField label="Tuky" unit="g" value={photoFat} onChange={setPhotoFat} accent="text-macro-fat" />
             </div>
 
-            {photoGrams !== analysis.grams && (
+            {photoGrams !== Math.round(base.grams) && base.grams > 0 && (
               <div className="mt-3 glass rounded-2xl p-3 flex items-center justify-between text-xs">
-                <span className="text-ink-mute">Po přepočtu na {photoGrams} g:</span>
+                <span className="text-ink-mute">Po přepočtu na {photoGrams} {photoRule.unit}:</span>
                 <span className="font-bold text-ink tabular-nums">
-                  {Math.round(photoKcal * (photoGrams / analysis.grams))} kcal
+                  {Math.round(photoKcal * (photoGrams / base.grams))} kcal
                 </span>
               </div>
             )}
@@ -825,7 +935,23 @@ function ResultCard({ item, onPick }: { item: FoodSearchResult; onPick: (i: Food
   );
 }
 
-function PickedConfig({ picked, grams, onGramsChange, prep, onPrepChange }: { picked: FoodSearchResult; grams: number; onGramsChange: (g: number) => void; prep: PrepMethod; onPrepChange: (p: PrepMethod) => void }) {
+function UsualChip({ usual, unit, onApply }: { usual: UsualPortion; unit: 'g' | 'ml'; onApply: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => { haptic('tap'); onApply(); }}
+      className="mt-3 w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-2xl bg-white/[0.05] ring-1 ring-white/10 text-left active:scale-[0.98] transition-transform"
+    >
+      <span className="text-[12px] text-ink-soft">
+        Obvykle si dáváš <strong className="text-ink font-semibold tabular-nums">{usual.grams} {unit}</strong>
+        <span className="text-ink-mute"> · {usual.count === 1 ? 'z minula' : `z ${usual.count} minulých`}</span>
+      </span>
+      <span className="text-[11px] font-bold text-coral-300 shrink-0">Použít</span>
+    </button>
+  );
+}
+
+function PickedConfig({ picked, grams, onGramsChange, prep, onPrepChange, usual }: { picked: FoodSearchResult; grams: number; onGramsChange: (g: number) => void; prep: PrepMethod; onPrepChange: (p: PrepMethod) => void; usual: UsualPortion | null }) {
   const rule = portionRule(picked.category ?? categorize(picked.name));
   const hasPieces = !!picked.pieceGrams && picked.pieceGrams > 0;
   const [unitMode, setUnitMode] = useState<'pieces' | 'grams'>(hasPieces ? 'pieces' : 'grams');
@@ -931,6 +1057,9 @@ function PickedConfig({ picked, grams, onGramsChange, prep, onPrepChange }: { pi
               presets={rule.presets}
             />
           </>
+        )}
+        {usual && usual.grams !== grams && (
+          <UsualChip usual={usual} unit={rule.unit} onApply={() => onGramsChange(usual.grams)} />
         )}
       </div>
 
