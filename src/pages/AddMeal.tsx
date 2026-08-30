@@ -4,6 +4,7 @@ import { useApp } from '../state/AppState';
 import { analyzeFoodImage, compressImage, estimateFoodFromName, fileToBase64, humanizeGeminiError, translateToCzech } from '../lib/gemini';
 import type { FoodAnalysis, FoodItem } from '../lib/gemini';
 import { usualPortion, differsEnough, type UsualPortion } from '../lib/portionMemory';
+import { aiQuota, FREE_TIER_DAILY, type AiQuota } from '../lib/aiQuota';
 import { todayISO } from '../lib/date';
 import { searchLocal, FOODS_DB } from '../lib/foodDb';
 import { searchOFF, lookupBarcode, looksForeign, type FoodSearchResult } from '../lib/foodSearch';
@@ -96,6 +97,11 @@ export default function AddMeal() {
   const [mFat, setMFat] = useState(0);
 
   const recent = useMemo(() => recentFoodsFromMeals(data.meals, 8), [data.meals]);
+
+  // Plain read, not memoised: it is one localStorage lookup, and every render
+  // that matters here is a re-entry to the photo screen — which is exactly when
+  // the number needs to be current.
+  const quota = aiQuota();
 
   // Portion unit, presets and whether a cooking method makes any sense follow
   // what the food actually is. A cappuccino gets ml and no airfryer.
@@ -504,6 +510,8 @@ export default function AddMeal() {
             <input ref={fileInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
             <input ref={galleryInput} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
 
+            {quota.remaining <= 5 && <QuotaNote quota={quota} />}
+
             {/* Hero viewfinder frame */}
             <button
               type="button"
@@ -904,6 +912,21 @@ function ResultCard({ item, onPick }: { item: FoodSearchResult; onPick: (i: Food
       </div>
       <svg className="text-ink-mute shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
     </button>
+  );
+}
+
+function QuotaNote({ quota }: { quota: AiQuota }) {
+  const out = quota.remaining === 0;
+  return (
+    <div className={`mb-3 rounded-2xl p-3 ring-1 ${out ? 'bg-amber-500/10 ring-amber-500/25' : 'bg-white/[0.04] ring-white/10'}`}>
+      <p className={`text-[12px] leading-snug ${out ? 'text-amber-200' : 'text-ink-soft'}`}>
+        {out ? (
+          <>Dnešní limit AI je vyčerpaný. Vyfotit můžeš, ale rozpoznání nejspíš selže — zvol <strong>Hledat</strong> nebo <strong>Ručně</strong>.</>
+        ) : (
+          <>Zbývá zhruba <strong className="text-ink font-semibold tabular-nums">{quota.remaining} z {FREE_TIER_DAILY}</strong> dnešních AI rozpoznání.</>
+        )}
+      </p>
+    </div>
   );
 }
 

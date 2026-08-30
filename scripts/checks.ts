@@ -1,4 +1,4 @@
-// Run: node --experimental-strip-types scripts/portionMemory.check.ts
+// Run: node --experimental-strip-types scripts/checks.ts
 import assert from 'node:assert';
 import { usualPortion, differsEnough } from '../src/lib/portionMemory.ts';
 import type { Meal } from '../src/types.ts';
@@ -60,3 +60,44 @@ assert.deepStrictEqual(usableItems({ grams: 440, items: plate }), plate);
 assert.strictEqual(usableItems({ grams: 380, items: [...plate, it('Petržel', 0, 0)] })?.length, 2);
 
 console.log('plate items ok');
+
+// --- daily AI quota ----------------------------------------------------
+// localStorage is the only browser API aiQuota touches, and only inside its
+// functions, so a stub set up before the first call is enough.
+const store = new Map<string, string>();
+(globalThis as unknown as { localStorage: Storage }).localStorage = {
+  getItem: (k: string) => store.get(k) ?? null,
+  setItem: (k: string, v: string) => { store.set(k, v); },
+  removeItem: (k: string) => { store.delete(k); },
+  clear: () => store.clear(),
+  key: () => null,
+  length: 0,
+} as Storage;
+
+const { aiQuota, noteAiCall, noteQuotaExhausted, FREE_TIER_DAILY } = await import('../src/lib/aiQuota.ts');
+const { todayISO } = await import('../src/lib/date.ts');
+
+assert.deepStrictEqual(aiQuota(), { used: 0, remaining: FREE_TIER_DAILY, exhausted: false });
+
+noteAiCall();
+noteAiCall();
+assert.deepStrictEqual(aiQuota(), { used: 2, remaining: FREE_TIER_DAILY - 2, exhausted: false });
+
+// A 429 is the truth for the key and beats the local tally.
+noteQuotaExhausted();
+assert.deepStrictEqual(aiQuota(), { used: 2, remaining: 0, exhausted: true });
+
+// Yesterday's tally must not carry over — including the exhausted flag, or the
+// warning would stick around after the quota reset.
+store.set('kaloriak:aiquota:v1', JSON.stringify({ day: '2000-01-01', used: 19, exhausted: true }));
+assert.deepStrictEqual(aiQuota(), { used: 0, remaining: FREE_TIER_DAILY, exhausted: false });
+
+// Corrupt or missing storage must not throw on a screen the user is looking at.
+store.set('kaloriak:aiquota:v1', 'not json');
+assert.strictEqual(aiQuota().remaining, FREE_TIER_DAILY);
+
+// Overshooting the limit floors at zero rather than going negative.
+store.set('kaloriak:aiquota:v1', JSON.stringify({ day: todayISO(), used: 99, exhausted: false }));
+assert.strictEqual(aiQuota().remaining, 0);
+
+console.log('ai quota ok');

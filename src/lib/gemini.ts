@@ -1,4 +1,5 @@
 import type { FoodItem } from '../types';
+import { noteAiCall, noteQuotaExhausted } from './aiQuota';
 export type { FoodItem };
 
 export interface FoodAnalysis {
@@ -71,13 +72,17 @@ export function humanizeGeminiError(e: unknown): string {
 }
 
 async function callProxy(body: object): Promise<unknown> {
+  noteAiCall();
   const res = await fetch('/api/gemini', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? 'Chyba serveru.');
+  if (!res.ok) {
+    if (res.status === 429) noteQuotaExhausted();
+    throw new Error(json.error ?? 'Chyba serveru.');
+  }
   return json;
 }
 
