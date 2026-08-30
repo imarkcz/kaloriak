@@ -21,6 +21,10 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
+// Margin around the ring bitmap: covers the comet halo (stroke x 2.2) plus the
+// distance a spore drifts before it fades. Sits inside the hero card's padding.
+const CANVAS_PAD = 36;
+
 interface Spore {
   x: number; y: number;
   vx: number; vy: number;
@@ -87,8 +91,19 @@ export default function ProgressRing({
     const ctx = canvas.getContext('2d')!;
     if (!ctx) return;
 
-    const cx = size / 2;
-    const cy = size / 2;
+    // Bitmap is padded beyond the ring so the comet halo and the spores are not
+    // clipped by the canvas edge, and scaled to device pixels so the glow is
+    // round rather than a soft blur.
+    const box = size + CANVAS_PAD * 2;
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    canvas.width = Math.round(box * dpr);
+    canvas.height = Math.round(box * dpr);
+    canvas.style.width = `${box}px`;
+    canvas.style.height = `${box}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const cx = box / 2;
+    const cy = box / 2;
     const ORBIT_PERIOD = 5.5; // seconds per full orbit
     let cometAngle = -Math.PI / 2;
     let spores: Spore[] = [];
@@ -127,7 +142,7 @@ export default function ProgressRing({
     function draw(time: number) {
       const dt = Math.min((time - lastTime) / 1000, 0.05);
       lastTime = time;
-      ctx.clearRect(0, 0, size, size);
+      ctx.clearRect(0, 0, box, box);
 
       // Advance comet
       cometAngle += (2 * Math.PI / ORBIT_PERIOD) * dt;
@@ -167,10 +182,23 @@ export default function ProgressRing({
       ctx.fillStyle = grd;
       ctx.fill();
 
-      // Comet core
+      // Comet core, lit from the leading edge so it reads as a sphere
+      const coreR = stroke / 2 - 0.5;
+      const lead = cometAngle - Math.PI / 3;
+      const sphere = ctx.createRadialGradient(
+        cx2 + Math.cos(lead) * coreR * 0.42,
+        cy2 + Math.sin(lead) * coreR * 0.42,
+        coreR * 0.12,
+        cx2,
+        cy2,
+        coreR,
+      );
+      sphere.addColorStop(0, 'rgba(255,255,255,1)');
+      sphere.addColorStop(0.55, 'rgba(255,255,255,0.92)');
+      sphere.addColorStop(1, `rgba(${cr},${cg},${cb},0.75)`);
       ctx.beginPath();
-      ctx.arc(cx2, cy2, stroke / 2 - 0.5, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.arc(cx2, cy2, coreR, 0, Math.PI * 2);
+      ctx.fillStyle = sphere;
       ctx.fill();
 
       animId = requestAnimationFrame(draw);
@@ -243,9 +271,9 @@ export default function ProgressRing({
       {/* Canvas comet + spores overlay */}
       <canvas
         ref={canvasRef}
-        width={size}
-        height={size}
-        className="absolute inset-0 pointer-events-none"
+        className="absolute pointer-events-none"
+        style={{ left: -CANVAS_PAD, top: -CANVAS_PAD }}
+        aria-hidden="true"
       />
 
       {/* Center content */}

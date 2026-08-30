@@ -11,6 +11,8 @@ const SCHEMA = {
     protein_g: { type: Type.NUMBER },
     carbs_g: { type: Type.NUMBER },
     fat_g: { type: Type.NUMBER },
+    portionDesc: { type: Type.STRING },
+    servingsVisible: { type: Type.NUMBER },
     confidence: { type: Type.STRING, enum: ['low', 'medium', 'high'] },
     note: { type: Type.STRING },
   },
@@ -32,11 +34,32 @@ const ESTIMATE_SCHEMA = {
   required: ['name', 'defaultGrams', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'confidence'],
 };
 
-const IMAGE_PROMPT = `Jsi nutriční expert. Analyzuj jídlo na fotce a odhadni nutriční hodnoty celé porce, kterou vidíš.
-Vrať jeden JSON objekt podle schématu. Odhad dělej realisticky — zohledni velikost porce podle běžných referenčních objektů (talíř ~27 cm, vidlička, ruka).
-Pokud je jídel více, spoj je do jednoho záznamu s názvem např. "Kuřecí s rýží a salátem".
-Hodnoty zaokrouhli: kcal na celé číslo, makra na 1 desetinné místo, gramy na celé číslo.
-Confidence: high = jasně viditelné a odhadnutelné, medium = běžný odhad, low = velmi nejisté.`;
+const IMAGE_PROMPT = `Jsi nutriční expert. Na fotce je jídlo. Odhadni nutriční hodnoty JEDNÉ PORCE PRO JEDNOHO ČLOVĚKA.
+
+NEJDŮLEŽITĚJŠÍ PRAVIDLO — kolik toho počítat:
+- Vždy odhaduj jen to, co sní jeden člověk. Nikdy nesčítej celý stůl.
+- Fotky z restaurací (hlavně asijských) často zachycují sdílené mísy nebo prostřený stůl pro víc lidí. V takovém případě odhadni JEDNU porci a do servingsVisible napiš, kolik porcí na fotce celkem vidíš.
+- Když je na fotce jasně jeden talíř pro jednoho, servingsVisible = 1.
+- Přílohy a omáčky, které k jídlu evidentně patří, do porce počítej. Cizí talíře, společné mísy navíc a věci mimo hlavní jídlo ne.
+
+Odhad velikosti podle nádobí (použij jako kalibraci):
+- mělký talíř Ø 26–28 cm, běžně naložený: 350–500 g
+- hluboký talíř nebo miska polévky: 300–400 g
+- velká asijská miska (pho, ramen, bun bo): 600–900 g včetně vývaru
+- řízek nebo steak: 150–220 g samotného masa
+- vařená rýže nebo nudle jako příloha: 150–250 g
+- salát nebo zelenina jako příloha: 80–150 g
+- sklenice nápoje: 200–330 ml
+
+Kalorie u tekutin:
+- Vývar má jen 5–15 kcal na 100 g. U polévek proto vyjde velká hmotnost, ale málo kalorií. Nepřepočítávej kalorie podle celkové hmotnosti.
+
+Formát odpovědi:
+- Odpovídej vždy česky, i u cizích jídel. Zavedený původní název dej do závorky, např. "Grilované vepřové s nudlemi (bún chả)".
+- portionDesc = porce lidskou mírou, např. "1 hluboká miska", "1 talíř", "1 řízek s bramborem".
+- Když je jídel na talíři víc, spoj je do jednoho záznamu, např. "Kuřecí s rýží a salátem".
+- Hodnoty zaokrouhli: kcal a gramy na celé číslo, makra na 1 desetinné místo.
+- confidence: high = jasně viditelná porce známého jídla, medium = běžný odhad, low = špatně viditelné nebo neznámé jídlo.\`;
 
 const NAME_PROMPT = `Jsi nutriční expert. Z názvu jídla v češtině odhadni typické nutriční hodnoty na 100 g.
 Pravidla:
@@ -49,7 +72,7 @@ Pravidla:
 
 // JSON schemas in plain text for OpenAI/Anthropic (they don't take Type enums)
 const NAME_JSON_SHAPE = `{"name":string,"defaultGrams":number,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number,"confidence":"low"|"medium"|"high","note"?:string}`;
-const IMAGE_JSON_SHAPE = `{"name":string,"grams":number,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number,"confidence":"low"|"medium"|"high","note"?:string}`;
+const IMAGE_JSON_SHAPE = `{"name":string,"grams":number,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number,"portionDesc":string,"servingsVisible":number,"confidence":"low"|"medium"|"high","note"?:string}`;
 
 type ProviderResult = unknown;
 

@@ -5,6 +5,11 @@ export interface FoodAnalysis {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  /** Portion in a household unit, e.g. "1 hluboká miska". */
+  portionDesc?: string;
+  /** How many servings the model can see on the photo. A shared restaurant
+   *  table is the common case where this is > 1 and the estimate covers one. */
+  servingsVisible?: number;
   confidence: 'low' | 'medium' | 'high';
   note?: string;
 }

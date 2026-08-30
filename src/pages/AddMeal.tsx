@@ -568,6 +568,37 @@ export default function AddMeal() {
               />
               <ConfidenceBadge level={analysis.confidence} />
             </div>
+            {analysis.portionDesc && (
+              <p className="text-[13px] text-ink-soft mt-1.5">
+                Počítám <strong className="text-ink font-semibold">{analysis.portionDesc}</strong>.
+              </p>
+            )}
+
+            {(analysis.servingsVisible ?? 1) > 1 && (
+              <div className="mt-2.5 rounded-2xl bg-amber-500/10 ring-1 ring-amber-500/25 p-3">
+                <p className="text-[12px] text-amber-200 leading-snug">
+                  Na fotce vypadá jídlo na <strong>{analysis.servingsVisible} porce</strong>.
+                  Zapisuju jen jednu — pokud jsi snědl víc, zvedni gramy níž.
+                </p>
+                <div className="flex gap-1.5 mt-2">
+                  {Array.from({ length: Math.min(4, Math.round(analysis.servingsVisible ?? 1)) }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => { haptic('tap'); setPhotoGrams(Math.round(analysis.grams * n)); }}
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${
+                        Math.round(photoGrams) === Math.round(analysis.grams * n)
+                          ? 'bg-grad-coral text-white'
+                          : 'bg-white/[0.06] text-ink-soft border border-white/10'
+                      }`}
+                    >
+                      {n}× porce
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <p className="text-[11px] text-ink-mute mt-1.5">
               {analysis.note ? `${analysis.note} · ` : ''}Klepni na název nebo hodnoty pro úpravu.
             </p>
