@@ -603,9 +603,25 @@ function DailyFeedbackCard({ date, kcal, protein, carbs, fat, targets, meals, go
     };
   }
 
+  // sessionStorage meant every launch re-asked the coach the same question about
+  // the same meals. The free Gemini tier allows 20 calls a day in total, so a
+  // self-refreshing card was competing with the photo analysis the user asked for.
+  function readCache(): string | null {
+    try { return localStorage.getItem(cacheKey); } catch { return null; }
+  }
+
+  function writeCache(msg: string) {
+    try {
+      for (const k of Object.keys(localStorage)) {
+        if (k.startsWith('feedback:') && !k.startsWith(`feedback:${date}:`)) localStorage.removeItem(k);
+      }
+      localStorage.setItem(cacheKey, msg);
+    } catch { /* storage full — the card just re-asks next time */ }
+  }
+
   async function load(force = false) {
     if (!force) {
-      const cached = sessionStorage.getItem(cacheKey);
+      const cached = readCache();
       if (cached) { setText(cached); return; }
     }
     abortRef.current?.abort();
@@ -615,7 +631,7 @@ function DailyFeedbackCard({ date, kcal, protein, carbs, fat, targets, meals, go
     try {
       const msg = await getDailyFeedback(buildCtx());
       setText(msg);
-      sessionStorage.setItem(cacheKey, msg);
+      writeCache(msg);
     } catch {
       setError('Feedback momentálně nedostupný.');
     } finally {
