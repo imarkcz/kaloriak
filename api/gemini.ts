@@ -38,8 +38,8 @@ const IMAGE_PROMPT = `Jsi nutriční expert. Na fotce je jídlo. Odhadni nutrič
 
 NEJDŮLEŽITĚJŠÍ PRAVIDLO — kolik toho počítat:
 - Vždy odhaduj jen to, co sní jeden člověk. Nikdy nesčítej celý stůl.
-- Fotky z restaurací (hlavně asijských) často zachycují sdílené mísy nebo prostřený stůl pro víc lidí. V takovém případě odhadni JEDNU porci a do servingsVisible napiš, kolik porcí na fotce celkem vidíš.
-- Když je na fotce jasně jeden talíř pro jednoho, servingsVisible = 1.
+- Fotky z restaurací (hlavně asijských) často zachycují sdílené mísy nebo prostřený stůl pro víc lidí. V takovém případě odhadni JEDNU porci pro jednoho.
+- servingsVisible = kolik LIDÍ by se z toho, co je na fotce, najedlo. Ne počet talířů, misek ani součástí jídla. Maso, nudle, salát a omáčka patřící k jednomu jídlu jsou dohromady JEDNA porce, tedy servingsVisible = 1. Dvě stejná jídla vedle sebe jsou 2. Když si nejsi jistý, napiš 1.
 - Přílohy a omáčky, které k jídlu evidentně patří, do porce počítej. Cizí talíře, společné mísy navíc a věci mimo hlavní jídlo ne.
 
 Odhad velikosti podle nádobí (použij jako kalibraci):
