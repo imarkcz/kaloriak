@@ -440,7 +440,9 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json(result);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      errors.push(`${p.name}: ${msg.substring(0, 120)}`);
+      // Provider errors are the only place a quota metric or a retired model id
+      // ever shows up; 120 chars cut off the part that says which.
+      errors.push(`${p.name}: ${msg.substring(0, 400)}`);
       // Always fall through. Bailing out on anything that was not a quota error
       // meant one retired model id could take the whole feature down while two
       // working providers waited behind it.
