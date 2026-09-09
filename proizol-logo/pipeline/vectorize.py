@@ -65,18 +65,45 @@ def damage_mask(rgb):
     return despeckle(ndi.binary_opening(other & inside, np.ones((3, 3))), 250)
 
 
-def heal(mask, damage, grow_px=35, fill=25):
-    """Doplni zakousnuti od necistoty. Uzavreni se pocita jen v okoli
-    poskozeni, takze ostre vrcholy pismen jinde zustanou nedotcene."""
+def heal(mask, damage, grow_px=30, pad=60):
+    """Doplni zakousnuti, ktere do tvaru udelala necistota na laku.
+
+    Uzavreni kruhem tady nestaci - zarez sice zaplni, ale na rovne hrane
+    (napr. levy bok tretiho "w") po nem zustane boule. Misto toho se v
+    malem okoli poskozeni doplni chybejici cast po LOKALNI KONVEXNI OBAL
+    dotceneho tvaru: rovna hrana se tim dorovna na primku a nikam se
+    nevyboulI. Doplnuje se jen uvnitr okoli poskozeni, takze konkavni
+    detaily pisma dal od nej (klin mezi tahy "w") zustanou nedotcene.
+    """
+    from scipy.spatial import ConvexHull, QhullError
+
     lab, n = ndi.label(damage)
     out = mask.copy()
-    st = disc(fill)
     for sl in ndi.find_objects(lab):
-        ys = slice(max(sl[0].start - grow_px - fill, 0), sl[0].stop + grow_px + fill)
-        xs = slice(max(sl[1].start - grow_px - fill, 0), sl[1].stop + grow_px + fill)
+        ys = slice(max(sl[0].start - pad, 0), sl[0].stop + pad)
+        xs = slice(max(sl[1].start - pad, 0), sl[1].stop + pad)
+        win = mask[ys, xs]
+        if not win.any():
+            continue
         zone = grow(damage[ys, xs], grow_px)
-        out[ys, xs] = np.where(zone, ndi.binary_closing(mask[ys, xs], st),
-                               out[ys, xs])
+        # jen ten tvar, ktereho se poskozeni dotyka
+        wl, _ = ndi.label(win)
+        touched = set(wl[grow(damage[ys, xs], 3) & win]) - {0}
+        if not touched:
+            continue
+        shape = np.isin(wl, list(touched))
+        pts = np.argwhere(shape)
+        if len(pts) < 4:
+            continue
+        try:
+            hull = ConvexHull(pts)
+        except QhullError:
+            continue
+        yy, xx = np.mgrid[0:win.shape[0], 0:win.shape[1]]
+        grid = np.stack([yy.ravel(), xx.ravel()], 1)
+        inside = np.all(grid @ hull.equations[:, :2].T
+                        + hull.equations[:, 2] <= 1e-9, axis=1)
+        out[ys, xs] |= inside.reshape(win.shape) & zone
     return out
 
 
