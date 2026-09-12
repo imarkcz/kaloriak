@@ -18,15 +18,28 @@ k otevření ani k tisku není potřeba žádné písmo.
 Soubory jsou v `logo/`. Ke každé variantě je `.svg` (editovatelné),
 `.pdf` (pro tiskárnu) a `.png` (náhled, průhledné pozadí).
 
-### Pro antracitové montérky
+### Podle barvy oblečení
 
-| Soubor | Popis | Počet barev |
+**Barva oblečení rozhoduje a doporučení úplně obrací.** Kontrast hlavní
+barvy loga vůči podkladu (počítá `pipeline/mockup.py`, není odhadnutý):
+
+| | šedá `#8A8D90` | antracit `#33383C` |
 |---|---|---|
-| `proizol-logo-moderni-bila` | **doporučeno** — modernizovaná, krátká adresa `proizol.cz`, tenčí linka | 1 |
-| `proizol-logo-moderni-bila-cervena` | totéž s červenou linkou jako firemním akcentem | 2 |
-| `proizol-logo-bila` | věrná rekonstrukce, jednobarevná bílá | 1 |
-| `proizol-logo-bila-cervena` | věrná rekonstrukce, červená linka | 2 |
-| `proizol-logo-cervena-obrys` | bílá s červeným obrysem, nejvýraznější | 2 |
+| bílá | 3,3× | **11,9×** |
+| modrá 280 C | **4,4×** | 1,3× |
+| červená 485 C | 1,4× | 2,4× |
+
+Červená neobstojí nikde jako nosná barva — ve stínu záhybu na šedé klesne
+na 1,0×, tedy neviditelná. Použitelná je jen jako obrys nebo linka na
+tmavém podkladu.
+
+| Oblečení | Soubor | Počet barev |
+|---|---|---|
+| **šedá** blůza | `proizol-logo` (modrá + bílý obrys) | 2 |
+| **antracitová** blůza | `proizol-logo-bila` | 1 |
+| antracit, modernizovaně | `proizol-logo-moderni-bila` — krátká adresa `proizol.cz`, tenčí linka | 1 |
+| antracit, s akcentem | `proizol-logo-cervena-obrys` | 2 |
+| bílé / světlé tričko | `proizol-logo-modra` | 1 |
 
 ### Ostatní použití
 
@@ -82,11 +95,17 @@ do vektoru. Proto proběhlo:
 
 ## Doporučení pro tisk
 
-- **Sítotisk / transfer:** jednobarevná bílá varianta. Nejlevnější a na
-  antracitu nejčitelnější.
+- **Barvu vybírat podle oblečení**, viz tabulka kontrastů výše. Jedna
+  univerzální varianta neexistuje.
+- **Sítotisk / transfer:** jednobarevná varianta je nejlevnější. Na
+  antracitu bílá, na šedé modrá.
 - **Nejmenší rozumná šířka:** 80 mm. Pod ní přestane být dělicí linka
-  a podnadpis čitelný — pro malé aplikace (čepice, levá hruď) doporučuji
-  použít jen nápis PROIZOL bez podnadpisu a adresy.
+  a podnadpis čitelný — pro malé aplikace (čepice, levá hruď) použít
+  **jen nápis PROIZOL** bez podnadpisu a adresy. Při 90 mm má podnadpis
+  výšku písmene 1,6 mm a linka 0,4 mm, což sítotisk na keprovině neudrží.
+- **Umístění na blůze:** pracovní blůzy mívají na levé hrudi vodorovnou
+  zipovou kapsu přesně v místě potisku. Logo musí nad ni — potvrdit
+  s tiskárnou podle skutečného střihu.
 - **Ochranná zóna:** kolem loga nechat volný prostor alespoň ve výšce
   písmene „O" z nápisu.
 - **Výšivka:** použít `proizol-logo-cerna` nebo jednobarevnou bílou; bílý
@@ -99,6 +118,7 @@ cd pipeline
 python3 rectify.py      # narovnání perspektivy      -> build/rectified.png
 python3 vectorize.py    # separace, opravy, obtažení -> build/layers.json
 python3 export.py       # barevné varianty           -> logo/
+python3 mockup.py       # náhledy na blůze           -> mockup/
 ```
 
 Závislosti: `potrace`, Python s `pillow`, `numpy`, `scipy`, `cairosvg`.
