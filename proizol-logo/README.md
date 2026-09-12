@@ -1,5 +1,19 @@
 # PROIZOL — logo v křivkách
 
+> **Nové logo (2026):** klient dodal redesign — hranatý řez, červená střecha
+> nad „Z" a červená diagonála Z. Je v `logo2/`, staví ho `pipeline/logo_v2.py`.
+> Původní rekonstrukce z polepu dodávky zůstává v `logo/` — popisuje ji
+> zbytek tohoto souboru.
+>
+> Nové logo **není obtažené**. Podkladem byl rastrový render s kovovým
+> gradientem; obtažení by přeneslo pásy gradientu do křivek a na sítotisk
+> se gradient stejně nehodí. Je proto postavené znovu jako geometrie: písmo
+> (Saira, váha 900, šířka 125) převedené na křivky, střecha a linka jako
+> čisté tvary, plochá bílá a červená. **Je to interpretace podle náhledu, ne
+> kopie zdrojového souboru** — pokud existuje originální vektor od autora
+> redesignu, má přednost.
+
+
 Rekonstrukce loga firmy PROIZOL z jediného podkladu, který byl k dispozici:
 fotografie polepu na dodávce. Výstupem jsou vektorové soubory připravené
 pro potisk oblečení — **všechny texty jsou převedené na křivky**, takže
