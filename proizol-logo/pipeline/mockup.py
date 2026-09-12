@@ -74,12 +74,16 @@ class Logo:
         self.k = self.w / (x1 - self.x0)
         self.h = (y1 - self.y0) * self.k
         self.rule_box = g["rule"]
-        self.word_h = 175.0          # vyska samotneho napisu v jednotkach loga
+        wx0, wy0, wx1, wy1 = g["bbox_word"]
+        self.word_k = self.w / (wx1 - wx0)
+        self.word_box = (wx0, wy0)
+        self.word_h = (wy1 - wy0) * self.word_k
 
-    def _group(self, name, color):
+    def _group(self, name, color, word=False):
         lay = self.layers[name]
-        tf = (f"scale({self.k:.8f}) translate({-self.x0},{-self.y0}) "
-              f"{lay['transform']}")
+        k = self.word_k if word else self.k
+        ox, oy = self.word_box if word else (self.x0, self.y0)
+        tf = f"scale({k:.8f}) translate({-ox},{-oy}) {lay['transform']}"
         paths = "".join(f'<path d="{d}"/>' for d in lay["paths"])
         return (f'<g fill="{color}" fill-rule="evenodd" '
                 f'transform="{tf}">{paths}</g>')
@@ -100,11 +104,11 @@ class Logo:
         return out
 
     def wordmark(self, v):
-        """Jen napis - vnorene viewBox podnadpis i adresu orizne."""
+        """Jen napis PROIZOL - vlastni vrstva, ne orez celeho loga."""
         out = ""
         if v["keyline"]:
-            out += self._group("keyline", v["keyline"])
-        return out + self._group("blue", v["blue"])
+            out += self._group("keyline_word", v["keyline"], word=True)
+        return out + self._group("word", v["blue"], word=True)
 
 
 def jacket(g, back):

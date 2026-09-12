@@ -220,8 +220,14 @@ def main():
     rh = max(int(round(909 * RULE_RATIO)), 8)
     log(f"linka: sirka {int(2 * half)} px, tloustka {rh} px, osa y={ry:.0f}")
 
+    # Napis se obtahuje i samostatne - pro male aplikace (leva hrud, cepice)
+    # se pouziva bez podnadpisu a adresy, a musi jit exportovat jako vlastni
+    # soubor, ne jen orizem celeho loga.
+    key_word = grow(word_s, kw_word)
+
     layers = {}
     for nm, m in [("keyline", key), ("blue", word_s | tag_s),
+                  ("keyline_word", key_word), ("word", word_s),
                   ("url", url_s), ("url_short", url_short_s)]:
         tf, paths = run_potrace(m, nm)
         layers[nm] = {"transform": tf, "paths": paths}
@@ -229,10 +235,13 @@ def main():
     rule_box = [axis - half, ry - rh / 2.0, axis + half, ry + rh / 2.0]
     allm = key | word_s | tag_s | url_s
     ys, xs = np.nonzero(allm)
+    wys, wxs = np.nonzero(key_word)
     geom = {
         "raster": list(map(int, blue.shape[::-1])),
         "bbox": [int(min(xs.min(), rule_box[0])), int(ys.min()),
                  int(max(xs.max(), rule_box[2])) + 1, int(ys.max()) + 1],
+        "bbox_word": [int(wxs.min()), int(wys.min()),
+                      int(wxs.max()) + 1, int(wys.max()) + 1],
         "cap_height": 909, "axis": float(axis),
         "rule": [float(v) for v in rule_box],
         "keyline_word": kw_word, "keyline_tag": kw_tag,

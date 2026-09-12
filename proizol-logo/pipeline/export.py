@@ -16,18 +16,25 @@ ANTHRACITE = "#33383C"          # barva monterek - jen pro nahledy
 
 
 def build_svg(layers, geom, fills, background=None, pad=0.0,
-              short_url=False, rule_scale=1.0):
-    """fills: {vrstva: barva | None}; None = vrstva se vynecha."""
-    bx0, by0, bx1, by1 = geom["bbox"]
+              short_url=False, rule_scale=1.0, wordmark_only=False,
+              print_mm=None):
+    """fills: {vrstva: barva | None}; None = vrstva se vynecha.
+
+    wordmark_only: jen napis PROIZOL, orezany na vlastni ohranicujici
+    obdelnik - pro male aplikace (leva hrud, cepice), kde by podnadpis
+    a adresa byly necitelne.
+    """
+    bx0, by0, bx1, by1 = geom["bbox_word" if wordmark_only else "bbox"]
     k = WIDTH_UNITS / (bx1 - bx0)
     w, h = WIDTH_UNITS, (by1 - by0) * k
     m = pad * w
+    mm = (print_mm if print_mm else PRINT_MM) * (1 + 2 * pad)
     out = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'viewBox="{-m:.3f} {-m:.3f} {w + 2 * m:.3f} {h + 2 * m:.3f}" '
-        f'width="{PRINT_MM * (1 + 2 * pad):.3f}mm" '
-        f'height="{PRINT_MM * (h + 2 * m) / w:.3f}mm">',
+        f'width="{mm:.3f}mm" '
+        f'height="{mm * (h + 2 * m) / (w + 2 * m):.3f}mm">',
         '<title>PROIZOL</title>',
     ]
     if background:
@@ -35,8 +42,11 @@ def build_svg(layers, geom, fills, background=None, pad=0.0,
                    f'height="{h + 2 * m:.3f}" fill="{background}"/>')
 
     url_layer = "url_short" if short_url else "url"
-    for name in ("keyline", "blue", "rule", url_layer):
-        color = fills.get("url" if name == url_layer else name)
+    order = (("keyline_word", "word") if wordmark_only
+             else ("keyline", "blue", "rule", url_layer))
+    for name in order:
+        key = {"keyline_word": "keyline", "word": "blue"}.get(name, name)
+        color = fills.get("url" if name == url_layer else key)
         if not color:
             continue
         if name == "rule":                       # linka se kresli jako obdelnik
@@ -93,9 +103,36 @@ MODERN = {
 }
 
 
+# Samotny napis - na levou hrud, cepici a vsude pod 120 mm sirky, kde by
+# podnadpis (vyska pismene 1,6 mm pri 90 mm) a linka (0,4 mm) zanikly.
+WORDMARK = {
+    "proizol-napis-modra-bily-obrys": (
+        dict(keyline=WHITE, blue=NAVY),
+        "jen napis, modra s bilym obrysem - seda bluza"),
+    "proizol-napis-bila": (
+        dict(keyline=None, blue=WHITE),
+        "jen napis, bila - antracitova bluza"),
+    "proizol-napis-modra": (
+        dict(keyline=None, blue=NAVY),
+        "jen napis, modra - svetle podklady"),
+}
+WORDMARK_MM = 90.0          # doporucena sirka na levou hrud
+
+
 def main():
     layers = json.loads((BUILD / "layers.json").read_text())
     geom = json.loads((BUILD / "geometry.json").read_text())
+
+    if "bbox_word" in geom:
+        for name, (fills, desc) in WORDMARK.items():
+            svg = build_svg(layers, geom, fills, wordmark_only=True,
+                            print_mm=WORDMARK_MM)
+            (DIST / f"{name}.svg").write_text(svg)
+            data = svg.encode()
+            cairosvg.svg2pdf(bytestring=data, write_to=str(DIST / f"{name}.pdf"))
+            cairosvg.svg2png(bytestring=data, write_to=str(DIST / f"{name}.png"),
+                             output_width=2400, background_color="#00000000")
+            log(f"{name:32s} {desc}")
 
     for name, (fills, bg, desc) in MODERN.items():
         svg = build_svg(layers, geom, fills, bg, short_url=True, rule_scale=0.55)

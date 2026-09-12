@@ -35,11 +35,23 @@ tmavém podkladu.
 
 | Oblečení | Soubor | Počet barev |
 |---|---|---|
-| **šedá** blůza | `proizol-logo` (modrá + bílý obrys) | 2 |
-| **antracitová** blůza | `proizol-logo-bila` | 1 |
+| **šedá blůza** ← potvrzeno klientem | `proizol-logo` (modrá + bílý obrys) | 2 |
+| antracitová blůza | `proizol-logo-bila` | 1 |
 | antracit, modernizovaně | `proizol-logo-moderni-bila` — krátká adresa `proizol.cz`, tenčí linka | 1 |
 | antracit, s akcentem | `proizol-logo-cervena-obrys` | 2 |
 | bílé / světlé tričko | `proizol-logo-modra` | 1 |
+
+### Jen nápis — pro malé aplikace
+
+Pod ~120 mm šířky podnadpis i dělicí linka zaniknou. Pro levou hruď,
+čepice a podobné použití je nachystaný samostatný soubor s nápisem
+(vlastní ořez, ne oříznuté celé logo), nastavený na 90 mm:
+
+| Soubor | Kam |
+|---|---|
+| `proizol-napis-modra-bily-obrys` | **šedá blůza** — levá hruď |
+| `proizol-napis-bila` | antracitová blůza |
+| `proizol-napis-modra` | světlé podklady |
 
 ### Ostatní použití
 
