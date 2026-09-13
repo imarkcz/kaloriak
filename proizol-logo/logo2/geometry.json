@@ -1,18 +1,18 @@
 {
   "font": "Saira",
-  "wght": 900,
+  "wght": 800,
   "wdth": 125,
   "cap": 1000.0,
   "logo": {
-    "width": 7090.9,
-    "height": 3288.0,
-    "ratio": 2.157,
+    "width": 7115.6,
+    "height": 3460.0,
+    "ratio": 2.057,
     "print_mm": 250.0
   },
   "znak": {
-    "width": 7090.9,
-    "height": 1480.0,
-    "ratio": 4.791,
+    "width": 7115.6,
+    "height": 1530.0,
+    "ratio": 4.651,
     "print_mm": 90.0
   }
 }

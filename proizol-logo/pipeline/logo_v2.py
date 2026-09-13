@@ -131,13 +131,13 @@ def build(face_word, face_tag, face_url, *, colors, compact=False):
     x_word = 0.0
 
     # podnadpis a adresa se prostrkaji na podil sirky napisu
-    TAG_CAP = 0.285 * CAP
-    tr = fit_tracking(face_tag, "VŠE O STŘECHÁCH", TAG_CAP, 0.72 * W)
+    TAG_CAP = 0.256 * CAP
+    tr = fit_tracking(face_tag, "VŠE O STŘECHÁCH", TAG_CAP, 0.78 * W)
     tag, w_tag, _ = set_text(face_tag, "VŠE O STŘECHÁCH", TAG_CAP, tr)
 
-    URL_CAP = 0.46 * CAP
+    URL_CAP = 0.50 * CAP
     URL = "www.proizol.cz"
-    tu = fit_tracking(face_url, URL, URL_CAP, 0.90 * W)
+    tu = fit_tracking(face_url, URL, URL_CAP, 0.96 * W)
     i_dot = URL.rindex(".")
     url_a, w_a, _ = set_text(face_url, URL[:i_dot], URL_CAP, tu)
     url_dot, w_dot, _ = set_text(face_url, ".", URL_CAP, tu)
@@ -145,13 +145,13 @@ def build(face_word, face_tag, face_url, *, colors, compact=False):
     w_url = w_a + w_dot + w_b + 2 * tu * URL_CAP
 
     # svisly rytmus
-    y_cap = 0.46 * CAP                  # temeno verzalek napisu
+    y_cap = 0.51 * CAP                  # temeno verzalek napisu
     y_base = y_cap + CAP                # uctari napisu
-    y_tag = y_base + 0.62 * CAP         # uctari podnadpisu
-    y_rule = y_tag + 0.34 * CAP
-    rule_t = 0.038 * CAP
-    y_url = y_rule + rule_t + 0.66 * CAP
-    H = y_url + 0.17 * CAP              # rezerva na dotahy dolu
+    y_tag = y_base + 0.57 * CAP         # uctari podnadpisu
+    y_rule = y_tag + 0.37 * CAP
+    rule_t = 0.037 * CAP
+    y_url = y_rule + 0.83 * CAP         # uctari adresy
+    H = y_url + 0.18 * CAP              # rezerva na dotahy dolu
 
     # strecha nad Z: Z je pate ze sedmi pismen "PROIZOL"
     z_cx = x_word + pos[4]
@@ -159,7 +159,7 @@ def build(face_word, face_tag, face_url, *, colors, compact=False):
 
     g = []
     g.append(f'<g id="strecha" fill="{c_acc}"><path d="'
-             + roof(z_cx, 0.0, y_cap, 0.58 * CAP, 0.28 * CAP)
+             + roof(z_cx, 0.0, y_cap, 0.95 * CAP, 0.26 * CAP)
              + '"/></g>')
     g.append(f'<g id="napis" fill="{c_word}" fill-rule="evenodd" '
              f'transform="translate({x_word:.2f},{y_base:.2f})">{word}</g>')
@@ -179,8 +179,8 @@ def build(face_word, face_tag, face_url, *, colors, compact=False):
     if compact:
         return "".join(g), W, y_base + 0.02 * CAP
 
-    dot_r = 0.042 * CAP
-    gap = 0.30 * CAP
+    dot_r = 0.050 * CAP
+    gap = 0.35 * CAP
     dots = []
     for side in (-1, 1):
         base = cx + side * (w_tag / 2.0 + gap)
@@ -226,11 +226,14 @@ VARIANTS = {
 }
 
 
-def faces(font="Saira", wght=900, wdth=125):
-    return Face(font, wght, wdth), Face(font, 700, 112), Face(font, 800, 100)
+def faces(font="Saira", wght=800, wdth=125):
+    """Napis a podnadpis hranatym rezem, adresa kulatym groteskem -
+    stejne jako v predloze."""
+    return (Face(font, wght, wdth), Face(font, 600, 118),
+            Face("ArchivoExp", 700, 100))
 
 
-def main(font="Saira", wght=900, wdth=125):
+def main(font="Saira", wght=800, wdth=125):
     import cairosvg
     fw, ft, fu = faces(font, wght, wdth)
     print(f"  rez {font} w{wght} x{wdth}; cap={fw.cap_units}/{fw.upem} upem")
