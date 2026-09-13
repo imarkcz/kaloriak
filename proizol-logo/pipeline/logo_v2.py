@@ -65,6 +65,12 @@ class Face:
 def set_text(face, text, cap_height, tracking=0.0):
     """Vysadi text a prevede na krivky.
 
+    Pozor: obrysy z pisma se MUSI vyplnovat pravidlem "nonzero".
+    Nektera pismena (R, a) maji driky a bricka jako dva prekryvajici se
+    obrysy tocene stejnym smerem; pri "evenodd" se prekryv odecte a v
+    miste napojeni nozky na bricko vznikne vykrojeni. Protisky jsou
+    toceny opacne, takze pri "nonzero" zustavaji dirami spravne.
+
     Vraci (svg, sirka, stredy_pismen) - vse uz v cilovych jednotkach.
     tracking je prostrkani v jednotkach cap_height.
     """
@@ -161,7 +167,7 @@ def build(face_word, face_tag, face_url, *, colors, compact=False):
     g.append(f'<g id="strecha" fill="{c_acc}"><path d="'
              + roof(z_cx, 0.0, y_cap, 0.95 * CAP, 0.26 * CAP)
              + '"/></g>')
-    g.append(f'<g id="napis" fill="{c_word}" fill-rule="evenodd" '
+    g.append(f'<g id="napis" fill="{c_word}" fill-rule="nonzero" '
              f'transform="translate({x_word:.2f},{y_base:.2f})">{word}</g>')
 
     # Diagonala Z cervene. Z se neseka - vybarvi se pruh pres celou sirku
@@ -188,7 +194,7 @@ def build(face_word, face_tag, face_url, *, colors, compact=False):
             dots.append(f'<circle cx="{base + side * i * dot_r * 2.7:.2f}" '
                         f'cy="{y_tag - TAG_CAP * 0.34:.2f}" r="{dot_r:.2f}"/>')
     g.append(f'<g id="tecky" fill="{c_acc}">{"".join(dots)}</g>')
-    g.append(f'<g id="podnadpis" fill="{c_word}" fill-rule="evenodd" '
+    g.append(f'<g id="podnadpis" fill="{c_word}" fill-rule="nonzero" '
              f'transform="translate({cx - w_tag / 2.0:.2f},{y_tag:.2f})">'
              f'{tag}</g>')
 
@@ -196,11 +202,11 @@ def build(face_word, face_tag, face_url, *, colors, compact=False):
              f'height="{rule_t:.2f}" fill="{c_acc}"/>')
 
     x = cx - w_url / 2.0
-    g.append(f'<g id="adresa" fill="{c_word}" fill-rule="evenodd" '
+    g.append(f'<g id="adresa" fill="{c_word}" fill-rule="nonzero" '
              f'transform="translate({x:.2f},{y_url:.2f})">{url_a}</g>')
-    g.append(f'<g id="adresa-tecka" fill="{c_acc}" fill-rule="evenodd" '
+    g.append(f'<g id="adresa-tecka" fill="{c_acc}" fill-rule="nonzero" '
              f'transform="translate({x + w_a:.2f},{y_url:.2f})">{url_dot}</g>')
-    g.append(f'<g id="adresa-cz" fill="{c_word}" fill-rule="evenodd" '
+    g.append(f'<g id="adresa-cz" fill="{c_word}" fill-rule="nonzero" '
              f'transform="translate({x + w_a + w_dot:.2f},{y_url:.2f})">'
              f'{url_b}</g>')
 
