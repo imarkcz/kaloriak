@@ -1,5 +1,0 @@
-# mezivysledky pipeline - generuji se znovu ze source/
-build/
-__pycache__/
-canvas/_*.json
-canvas/proizol-monterky.html
